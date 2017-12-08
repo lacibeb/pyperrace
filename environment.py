@@ -7,6 +7,7 @@ from skimage.morphology import disk
 from skimage.color import rgb2gray
 
 #TODO: megcsinálnia rewardot a szakaszok szerint. Megkeresni a 'celbaer' fuggvenyt az eredeti matlab kódomban
+#anyam a vasaloval
 class PaperRaceEnv:
     """ez az osztály biztosítja a tanuláshoz a környezetet"""
 
