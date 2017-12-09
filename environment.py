@@ -11,7 +11,7 @@ from skimage.color import rgb2gray
 class PaperRaceEnv:
     """ez az osztály biztosítja a tanuláshoz a környezetet"""
 
-    def __init__(self, trk_pic, trk_col, gg_pic, start_line, random_init=False, track_inside_color=None):
+    def __init__(self, trk_pic, trk_col, gg_pic, sections, random_init=False, track_inside_color=None):
 
         # ha nincs megadva a pálya belsejének szín, akkor pirosra állítja
         # ez a rewardokat kiszámoló algoritmus működéséhez szükséges
@@ -25,6 +25,8 @@ class PaperRaceEnv:
         self.gg_pic = mpimg.imread(gg_pic) # beolvassa a GG diagramot
         self.steps = 0  # az eddig megtett lépések száma
 
+        # Az első szakasz a sectionban, lesz a startvonal
+        start_line = sections[0]
         self.start_line = start_line  # az első szkasz közepén áll először az autó
         start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
         start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
@@ -160,9 +162,10 @@ class PaperRaceEnv:
         return celba, t2
 
     def is_on_track(self, pos):
-        # a pálya színe és a pozíciónk pixelének színe alapján
-        # visszaadja, hogy rajta vagyunk -e a pályán
-
+        """
+        a pálya színe és a pozíciónk pixelének színe alapján visszaadja, hogy rajta vagyunk -e a pályán, illetve
+        hogy melyik szektorban vagyunk(?)
+        """
         if pos[0] > np.shape(self.trk_pic)[1] or pos[1] > np.shape(self.trk_pic)[0] or \
                         pos[0] < 0 or pos[1] < 0 or np.isnan(pos[0]) or np.isnan(pos[1]):
             return False
@@ -250,6 +253,8 @@ class PaperRaceEnv:
         # létrehoz egy diszket, amivel megnézi, hogy van -e r sugarú környezetében piros pixel
         # ha igen, akkor azt a pixelt kikeresi a dist_dict-ből, majd a kapott értéket kivonja
         # az előző lépésben kapott-ból, így megkapjuk, hogy mennyit tett meg azóta és ez a reward
+
+
 
         while not np.any(tmp):
             r = r + 1 # növeljük a disc sugarát

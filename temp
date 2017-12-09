@@ -1,4 +1,5 @@
 from numpy import linalg as LA
+import numpy as np
 
 v = [120, 190]
 ev = v/LA.norm(v)
@@ -37,4 +38,14 @@ nagyobb mint 0
 celba = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
 
 print(celba, t1, t2)
+
+sections = np.array([[350,  60, 350, 100],
+                     [539, 116, 517, 137],
+                     [348, 354, 348, 326],
+                     [ 35, 200,  70, 200],
+                     [250,  60, 250, 100]])
+
+start_line = sections[0]
+
+print(start_line)
 

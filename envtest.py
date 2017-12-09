@@ -6,10 +6,15 @@ from replay_buffer import ReplayBuffer
 
 trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 
-start_line = np.array([350, 60, 350, 100]) # eredeti pálya
+sections = np.array([[350,  60, 350, 100],
+                     [539, 116, 517, 137],
+                     [348, 354, 348, 326],
+                     [ 35, 200,  70, 200],
+                     [250,  60, 250, 100]])
+
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
-env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False) # paperrace környezet létrehozása
+env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', sections, random_init=False) # paperrace környezet létrehozása
 
 mem_size = 100 # a memória mérete, amiből a batch-be válogatunk
 batch_size = 10 # batch mérete, ami a tanítási adatokat tartalmazza
