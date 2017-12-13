@@ -61,9 +61,9 @@ class PaperRaceEnv:
         """
         ez a függvény számolja a lépést
 
-        :param spd_chn:  a sebesség megváltoztatása.(De ez relatívban van!!!)
+        :param spd_chn:  a sebesség megváltoztatása.(De ez relatívban (lokalisban, a pillanatnyi egyeneshez kepest van!)
         :param spd_old: az aktuális sebességvektor
-        :param pos_old: aktuélis pozíció
+        :param pos_old: aktuális pozíció
         :return:
             spd_new: Az új(a lépés utáni) sebességvektor[Vx, Vy]
             pos_new: Az új(a lépés utáni) pozíció[Px, Py]
@@ -81,7 +81,7 @@ class PaperRaceEnv:
 
         spd_chn = np.asmatrix(spd_chn)
 
-        # a valtozás globálisban:
+        # a sebesseg valtozás globálisban:
         spd_chn_glb = np.round(np.column_stack((e1_spd_old, e2_spd_old)) * spd_chn.transpose())
 
         # az új sebességvektor:
@@ -126,14 +126,14 @@ class PaperRaceEnv:
         #return np.array([spd_new[0], spd_new[1], pos_new[0], pos_new[1]]), reward if reward >= 0 else 2*reward, end
 
     #TODO 1.2: lecsekkolni mukodik-e ez acelbaer fuggveny
-    def celbaer(self, pos, spd, celbal, celjob):
+    def sectionpass(self, pos, spd, celbal, celjob):
         """
-        Ha a Pos - ból húzott Spd vektor metszi a celvonalat(Szakasz(!),nem egynes) akkor 1 - et ad vissza(true)
-        t2 az az ertek ami mgmondja hogy a Spd hanyadánál metszi a celvonalat.Ha t2 = 1 akkor a Spd vektor eppenhogy
-        eleri a celvonalat.
+        Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor cross = 1 - et ad vissza(true)
+        A t2 az az ertek ami mgmondja hogy a Spd vektor hanyadánál metszi az adott szakaszhatart. Ha t2 = 1 akkor a Spd
+        vektor eppenhogy eleri a celvonalat.
         """
         """
-        keplethez kello ertekek. p1, es p2 pontokkal valamint v1 es v2 iranyvektorokkal adott egyenesek metszespontjat
+        keplethez kello idediglenes ertekek. p1, es p2 pontokkal valamint v1 es v2 iranyvektorokkal adott egyenesek metszespontjat
         nezzuk, ugy hogy a celvonal egyik pontjabol a masikba mutat a v1, a v2 pedig a sebesseg, p2pedig a pozicio
         """
 
@@ -159,12 +159,12 @@ class PaperRaceEnv:
         szakaszokon belulre esik-e: Ha mindket t, t1 es t2 is kisebb mint 1 és
         nagyobb mint 0
         """
-        celba = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
+        cross = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
 
-        if not celba:
+        if not cross:
             t2 = 0
 
-        return celba, t2
+        return cross, t2
 
     def is_on_track(self, pos):
         """
