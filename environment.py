@@ -93,8 +93,8 @@ class PaperRaceEnv:
             X = np.array([pos_old[0], pos_new[0]])
             Y = np.array([pos_old[1], pos_new[1]])
             plt.plot(X, Y, color=color)
-
-        if not self.is_on_track(pos_new): # ha kisiklik
+        # ha kisiklik:
+        if not self.is_on_track(pos_new):
             reward = -50
             reward, curr_dist, pos = self.get_reward(pos_new)
 
@@ -113,58 +113,76 @@ class PaperRaceEnv:
             spd_new = spd_new/LA.norm(spd_new)
             #TODO 1.1: INNEN folytatni. Nem fasza. random lepkedve kifagy. manualban jatszva faja, de a szakaszok es
             #celbaerkezes meg hianyzik.
-
+        # ha visszafelé indul:
         elif self.start_line[1] < pos_new[1] < self.start_line[3] \
-                and pos_old[0] >= self.start_line[0] > pos_new[0]:  # ha visszafelé indul
-            reward = -10
+                and pos_old[0] >= self.start_line[0] > pos_new[0]:
+            reward = -100
             end = True
+        # ha atszakit egy szakaszhatart:
+        elif self.sectionpass(pos_new,spd_new,)
+
+        # normál esetben a reward:
         else:
-            reward, curr_dist, pos = self.get_reward(pos_new) # normál esetben a reward
-        if np.array_equal(spd_new, [0, 0]): # ha az autó megáll, vége
+            #reward, curr_dist, pos = self.get_reward(pos_new)
+            reward = -1
+
+        # ha az autó megáll, vége
+        if np.array_equal(spd_new, [0, 0]):
             end = True
+
         return spd_new, pos_new, reward if reward >= 0 else 2 * reward, end
         #return np.array([spd_new[0], spd_new[1], pos_new[0], pos_new[1]]), reward if reward >= 0 else 2*reward, end
 
-    #TODO 1.2: lecsekkolni mukodik-e ez acelbaer fuggveny
-    def sectionpass(self, pos, spd, celbal, celjob):
+    #TODO 1.2: lecsekkolni mukodik-e ez a sectionpass fuggveny
+    def sectionpass(self, pos, spd):
         """
-        Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor cross = 1 - et ad vissza(true)
+        Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor crosses = 1 - et ad vissza(true)
         A t2 az az ertek ami mgmondja hogy a Spd vektor hanyadánál metszi az adott szakaszhatart. Ha t2 = 1 akkor a Spd
         vektor eppenhogy eleri a celvonalat.
+
+        Ezt az egeszet nezi a kornyezet, azaz a palya definialasakor kapott osszes szakaszra (sectionlist) Ha a
+        pillanatnyi pos-bol huzott spd barmely section-t jelzo szakaszt metszi, visszaadja hogy:
+        crosses = True, azaz hogy tortent szakasz metszes.
+        t2 = annyi amennyi, azaz hogy spd hanyadanal metszette
+        section_nr = ahanyadik szakaszt metszettuk epp.
         """
         """
         keplethez kello idediglenes ertekek. p1, es p2 pontokkal valamint v1 es v2 iranyvektorokkal adott egyenesek metszespontjat
         nezzuk, ugy hogy a celvonal egyik pontjabol a masikba mutat a v1, a v2 pedig a sebesseg, p2pedig a pozicio
         """
+        for i in range(len(self.sections)):
+            v1y = self.sections[i][2] - self.sections[i][0]
+            v1z = self.sections[i][3] - self.sections[i][1]
+            v2y = spd[0]
+            v2z = spd[1]
 
-        v1y = celjob[0] - celbal[0]
-        v1z = celjob[1] - celbal[1]
-        v2y = spd[0]
-        v2z = spd[1]
+            p1y = self.sections[i][0]
+            p1z = self.sections[i][1]
+            p2y = pos[0]
+            p2z = pos[1]
 
-        p1y = celbal[0]
-        p1z = celbal[1]
-        p2y = pos[0]
-        p2z = pos[1]
+            """
+            t2 azt mondja hogy a p1 pontbol v1 iranyba indulva v1 hosszanak hanyadat kell megtenni hogy elerjunk a 
+            metszespontig. Ha t2=1 epp v2vegpontjanal van a metszespopnt. t1,ugyanez csak p1 es v2-vel.
+            """
+            t2 = (-v1y * p1z + v1y * p2z + v1z * p1y - v1z * p2y) / (-v1y * v2z + v1z * v2y)
+            t1 = (p1y * v2z - p2y * v2z - v2y * p1z + v2y * p2z) / (-v1y * v2z + v1z * v2y)
 
-        """
-        t2 azt mondja hogy a p1 pontbol v1 iranyba indulva v1 hosszanak hanyadat kell megtenni hogy elerjunk a 
-        metszespontig. Ha t2=1 epp v2vegpontjanal van a metszespopnt. t1,ugyanez csak p1 es v2-vel.
-        """
-        t2 = (-v1y * p1z + v1y * p2z + v1z * p1y - v1z * p2y) / (-v1y * v2z + v1z * v2y)
-        t1 = (p1y * v2z - p2y * v2z - v2y * p1z + v2y * p2z) / (-v1y * v2z + v1z * v2y)
+            """
+            Annak eldontese hogy akkor az egyenesek metszespontja az most a
+            szakaszokon belulre esik-e: Ha mindket t, t1 es t2 is kisebb mint 1 és
+            nagyobb mint 0
+            """
+            cross = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
 
-        """
-        Annak eldontese hogy akkor az egyenesek metszespontja az most a
-        szakaszokon belulre esik-e: Ha mindket t, t1 es t2 is kisebb mint 1 és
-        nagyobb mint 0
-        """
-        cross = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
+            if cross:
+                crosses = True
+                section_nr = i
+            else:
+                t2 = 0
+                section_nr = 0
 
-        if not cross:
-            t2 = 0
-
-        return cross, t2
+        return crosses, t2, section_nr
 
     def is_on_track(self, pos):
         """
