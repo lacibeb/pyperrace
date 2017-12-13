@@ -45,11 +45,15 @@ class PaperRaceEnv:
         self.dists = self.__get_dists(True) # a kezdőponttól való "távolságot" tárolja a reward fv-hez
 
     def draw_track(self):
-        plt.imshow(self.trk_pic)  # pálya kirajzolása
+        # pálya kirajzolása
+        plt.imshow(self.trk_pic)
 
-        X = np.array([self.start_line[0], self.start_line[2]])  # kezdővonal kirajzolása
-        Y = np.array([self.start_line[1], self.start_line[3]])
-        plt.plot(X, Y, color='red')
+        # Szakaszok kirajzolása
+        for i in range(len(self.sections)-1):
+
+            X = np.array([self.sections[i][0], self.sections[i][2]])
+            Y = np.array([self.sections[i][1], self.sections[i][3]])
+            plt.plot(X, Y, color='blue')
 
     def step(self, spd_chn, spd_old, pos_old, draw, color):
 
