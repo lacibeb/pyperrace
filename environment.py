@@ -26,6 +26,7 @@ class PaperRaceEnv:
         self.steps = 0  # az eddig megtett lépések száma
 
         # Az első szakasz a sectionban, lesz a startvonal
+        self.sections = sections
         start_line = sections[0]
         self.start_line = start_line  # az első szkasz közepén áll először az autó
         start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
@@ -49,7 +50,7 @@ class PaperRaceEnv:
         plt.imshow(self.trk_pic)
 
         # Szakaszok kirajzolása
-        for i in range(len(self.sections)-1):
+        for i in range(len(self.sections)):
 
             X = np.array([self.sections[i][0], self.sections[i][2]])
             Y = np.array([self.sections[i][1], self.sections[i][3]])
