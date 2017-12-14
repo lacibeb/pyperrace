@@ -25,9 +25,10 @@ class PaperRaceEnv:
         self.gg_pic = mpimg.imread(gg_pic) # beolvassa a GG diagramot
         self.steps = 0  # az eddig megtett lépések száma
 
+        self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
         # Az első szakasz a sectionban, lesz a startvonal
         self.sections = sections
-        start_line = sections[0]
+        start_line = sections[self.section_nr]
         self.start_line = start_line  # az első szkasz közepén áll először az autó
         start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
         start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
@@ -88,17 +89,24 @@ class PaperRaceEnv:
         spd_new = spd_old + np.ravel(spd_chn_glb)
         pos_new = pos_old + spd_new
 
+        # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitottunk-e at szakaszt, es ha igen melyiket,
+        # es az elmozdulas hanyad reszenel
+        crosses, t2, section_nr = self.sectionpass(pos_new, spd_new)
 
+
+        #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
             X = np.array([pos_old[0], pos_new[0]])
             Y = np.array([pos_old[1], pos_new[1]])
             plt.plot(X, Y, color=color)
-        # ha kisiklik:
+
+        # ha lemegy a palyarol:
         if not self.is_on_track(pos_new):
             reward = -50
             reward, curr_dist, pos = self.get_reward(pos_new)
 
-            #TODO 1: kisikláskor ne legyen vége
+            #TODO 1: kisikláskor ne legyen vége, szovaal nem csak rewardot adni hanem sebessegvektorrt es poziciot is
+            #kell ebben az esetben modositani
 
             """
             Az init-ben meghivasra kerul ez a get_dist fuggveny, ami elvileg csinál egy dists nevu dict-et, amiben
@@ -113,24 +121,26 @@ class PaperRaceEnv:
             spd_new = spd_new/LA.norm(spd_new)
             #TODO 1.1: INNEN folytatni. Nem fasza. random lepkedve kifagy. manualban jatszva faja, de a szakaszok es
             #celbaerkezes meg hianyzik.
+
         # ha visszafelé indul:
-        elif self.start_line[1] < pos_new[1] < self.start_line[3] \
-                and pos_old[0] >= self.start_line[0] > pos_new[0]:
+        elif self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]:
             reward = -100
             end = True
+
         # ha atszakit egy szakaszhatart:
-        elif self.sectionpass(pos_new,spd_new,)
+        elif crosses:
+            reward = -t2
 
         # normál esetben a reward:
         else:
             #reward, curr_dist, pos = self.get_reward(pos_new)
             reward = -1
 
-        # ha az autó megáll, vége
+        # ha barmi miatt az autó megáll, sebesseg zerus, akkor vége
         if np.array_equal(spd_new, [0, 0]):
             end = True
-
-        return spd_new, pos_new, reward if reward >= 0 else 2 * reward, end
+ITT VAN MOST ABBAHAGVA? A REWARDOKKAL VALAMI NEM STIMMEL? KNÓB INNEN FOLYTATNI
+        return spd_new, pos_new, reward if reward >= 0 else 2 * reward, end, section_nr
         #return np.array([spd_new[0], spd_new[1], pos_new[0], pos_new[1]]), reward if reward >= 0 else 2*reward, end
 
     #TODO 1.2: lecsekkolni mukodik-e ez a sectionpass fuggveny
@@ -161,26 +171,33 @@ class PaperRaceEnv:
             p2y = pos[0]
             p2z = pos[1]
 
-            """
-            t2 azt mondja hogy a p1 pontbol v1 iranyba indulva v1 hosszanak hanyadat kell megtenni hogy elerjunk a 
-            metszespontig. Ha t2=1 epp v2vegpontjanal van a metszespopnt. t1,ugyanez csak p1 es v2-vel.
-            """
-            t2 = (-v1y * p1z + v1y * p2z + v1z * p1y - v1z * p2y) / (-v1y * v2z + v1z * v2y)
-            t1 = (p1y * v2z - p2y * v2z - v2y * p1z + v2y * p2z) / (-v1y * v2z + v1z * v2y)
-
-            """
-            Annak eldontese hogy akkor az egyenesek metszespontja az most a
-            szakaszokon belulre esik-e: Ha mindket t, t1 es t2 is kisebb mint 1 és
-            nagyobb mint 0
-            """
-            cross = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
-
-            if cross:
-                crosses = True
-                section_nr = i
+            # mielott vizsgaljuk a metszeseket, gyorsan ki kell zarni, ha a parhuzamosak a vizsgalt szakaszok
+            # ilyenkor 0-val osztas lenne a kepletekben
+            if -v1y * v2z + v1z * v2y == 0:
+                crosses = False
+            # Amugy mehetnek a vizsgalatok
             else:
-                t2 = 0
-                section_nr = 0
+                """
+                t2 azt mondja hogy a p1 pontbol v1 iranyba indulva v1 hosszanak hanyadat kell megtenni hogy elerjunk a 
+                metszespontig. Ha t2=1 epp v2vegpontjanal van a metszespopnt. t1,ugyanez csak p1 es v2-vel.
+                """
+                t2 = (-v1y * p1z + v1y * p2z + v1z * p1y - v1z * p2y) / (-v1y * v2z + v1z * v2y)
+                t1 = (p1y * v2z - p2y * v2z - v2y * p1z + v2y * p2z) / (-v1y * v2z + v1z * v2y)
+
+                """
+                Annak eldontese hogy akkor az egyenesek metszespontja az most a
+                szakaszokon belulre esik-e: Ha mindket t, t1 es t2 is kisebb mint 1 és
+                nagyobb mint 0
+                """
+                cross = (0 < t1) and (t1 < 1) and (0 < t2) and (t2 < 1)
+
+                if cross:
+                    crosses = True
+                    section_nr = i
+                else:
+                    crosses = False
+                    t2 = 0
+                    section_nr = 0
 
         return crosses, t2, section_nr
 

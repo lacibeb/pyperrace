@@ -47,7 +47,7 @@ for ep in range(episodes):
         #action = int(np.random.randint(-180, 180, size=1))
         print("action: ",action)
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
-        v_new, pos_new, reward, end = env.step(gg_action, v, pos, draw, color)
+        v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
         s = [v[0], v[1], pos[0], pos[1]]
         s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
         a = action
@@ -58,6 +58,7 @@ for ep in range(episodes):
         #print(s2)
         epreward = epreward + reward
         print("reward: ",reward)
+        print("Section: ", section_nr)
 
         replay_buffer.add(np.reshape(s, (s_dim,)), np.reshape(a, (a_dim,)), r,
                           terminal, np.reshape(s2, (s_dim,)))
@@ -75,4 +76,5 @@ for ep in range(episodes):
         #print('batch: ', s_batch, a_batch, r_batch, t_batch, s2_batch)
 
     print("Eprew.: ",epreward)
+
 
