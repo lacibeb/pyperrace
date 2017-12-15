@@ -91,7 +91,7 @@ class PaperRaceEnv:
 
         # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitottunk-e at szakaszt, es ha igen melyiket,
         # es az elmozdulas hanyad reszenel
-        crosses, t2, section_nr = self.sectionpass(pos_new, spd_new)
+        crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
 
         #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
@@ -103,7 +103,10 @@ class PaperRaceEnv:
         # ha lemegy a palyarol:
         if not self.is_on_track(pos_new):
             reward = -50
-            reward, curr_dist, pos = self.get_reward(pos_new)
+            end = True
+            # itt kene egy fuggveny ami megcsinalja a visszapattanast. Most a get_rewarddal van osszehegesztve valami,
+            # de szar. jobb lenne kulon direkt erre egy fv
+            # reward, curr_dist, pos = self.get_reward(pos_new)
 
             #TODO 1: kisikláskor ne legyen vége, szovaal nem csak rewardot adni hanem sebessegvektorrt es poziciot is
             #kell ebben az esetben modositani
@@ -117,8 +120,8 @@ class PaperRaceEnv:
             Adunk egy kurva nagy büntit, és az kiesés után azt mondjuk hogy induljon tovább ebből a pontból az autó, 
             mégpedig a legutolsó lépés sebességével párhuzamos irányba. Kis kezdeti sebességgel.
             """
-            pos_new = pos
-            spd_new = spd_new/LA.norm(spd_new)
+            #pos_new = pos
+            #spd_new = spd_new/LA.norm(spd_new)
             #TODO 1.1: INNEN folytatni. Nem fasza. random lepkedve kifagy. manualban jatszva faja, de a szakaszok es
             #celbaerkezes meg hianyzik.
 
@@ -127,9 +130,11 @@ class PaperRaceEnv:
             reward = -100
             end = True
 
-        # ha atszakit egy szakaszhatart:
-        elif crosses:
-            reward = -t2
+        # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
+        # TODO: kesobb majd megfontolando hogy a koztes szakaszoknal is kapjon reszido szerintit, hatha a tanulast segiti.
+        elif crosses and section_nr == len(self.sections)-1:
+            reward = t2-1
+            end = True
 
         # normál esetben a reward:
         else:
@@ -139,8 +144,7 @@ class PaperRaceEnv:
         # ha barmi miatt az autó megáll, sebesseg zerus, akkor vége
         if np.array_equal(spd_new, [0, 0]):
             end = True
-ITT VAN MOST ABBAHAGVA? A REWARDOKKAL VALAMI NEM STIMMEL? KNÓB INNEN FOLYTATNI
-        return spd_new, pos_new, reward if reward >= 0 else 2 * reward, end, section_nr
+        return spd_new, pos_new, reward, end, section_nr
         #return np.array([spd_new[0], spd_new[1], pos_new[0], pos_new[1]]), reward if reward >= 0 else 2*reward, end
 
     #TODO 1.2: lecsekkolni mukodik-e ez a sectionpass fuggveny
@@ -194,6 +198,7 @@ ITT VAN MOST ABBAHAGVA? A REWARDOKKAL VALAMI NEM STIMMEL? KNÓB INNEN FOLYTATNI
                 if cross:
                     crosses = True
                     section_nr = i
+                    break
                 else:
                     crosses = False
                     t2 = 0

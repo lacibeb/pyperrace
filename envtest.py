@@ -7,10 +7,10 @@ from replay_buffer import ReplayBuffer
 trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 
 sections = np.array([[350,  60, 350, 100],
-                     [539, 116, 517, 137],
-                     [348, 354, 348, 326],
-                     [ 35, 200,  70, 200],
-                     [250,  60, 250, 100]])
+                     [450,  60, 450, 100]])
+#                     [348, 354, 348, 326],
+#                     [ 35, 200,  70, 200],
+#                     [250,  60, 250, 100]])
 
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
@@ -34,7 +34,7 @@ for ep in range(episodes):
     if draw: # ha rajzolunk
         plt.clf()
         env.draw_track()
-    v = np.array([1, 0])  # az elején a sebesség jobbra 1
+    v = np.array([20, 0])  # az elején a sebesség jobbra 1
     # ezt könnyen megváltoztatja, tulajdonképen csak arra jó, hogy nem 0
     pos = np.array(env.starting_pos)  # kezdőpozíció beállítása
     reward = 0
