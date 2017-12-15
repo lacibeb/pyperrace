@@ -7,8 +7,8 @@ from replay_buffer import ReplayBuffer
 trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 
 sections = np.array([[350,  60, 350, 100],
-                     [450,  60, 450, 100]])
-#                     [348, 354, 348, 326],
+                     [560, 130, 535, 165],
+                     [348, 354, 348, 326]])
 #                     [ 35, 200,  70, 200],
 #                     [250,  60, 250, 100]])
 
