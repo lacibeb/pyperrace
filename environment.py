@@ -104,9 +104,22 @@ class PaperRaceEnv:
 #VALAMI SZAR A KURVA PALYAROL LEMENETELKOR: NEM TUDJA a curr_pos-t lekerni a dict-bol, a get_ref_time
         # ha lemegy a palyarol:
         if not self.is_on_track(pos_new):
+            # a get dist, nem tudja lekerdeni ha palyan kivuli ponthoz kell, ezert kieseskor a pos_old, azaz ami meg
+            # palyan volt, annak a tavolsagat kerdezzuk le.
             ref_time, curr_dist, pos = self.get_ref_time(pos_old, ref_spd)
-            reward = -1000 + curr_dist
-            print(curr_dist)
+
+            # mivel ha az elso lepes eleve olyan hogy kilep a palyarol, akkor a kezdo pozicio tavolsagat nezi, ami
+            # ugyancsak a get_dist miatt a legnyagyobb szam, ezert ilyenkor kurvanagy lenne a reward. Szoval ha az elso
+            # lepessel kiesunk, azt kulon kezeljuk
+            chk_start = (pos_old == self.starting_pos).all()
+            #print(pos_old,", ", self.starting_pos)
+            #print(chk_start)
+            if chk_start:
+                reward = -100
+            else:
+                reward = -50 + curr_dist
+            #print("envreward, ", reward)
+            #print("curr dist= ", curr_dist)
             end = True
             #a megtett uttat kinullazzuk, hogy jo nagy buntit jelentsen a kieses
             # itt kene egy fuggveny ami megcsinalja a visszapattanast. Most a get_rewarddal van osszehegesztve valami,
@@ -132,7 +145,7 @@ class PaperRaceEnv:
 
         # ha visszafelé indul:
         elif self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]:
-            reward = -100
+            reward = -200
             curr_dist = 0.1
             end = True
 

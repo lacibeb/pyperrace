@@ -7,8 +7,8 @@ from replay_buffer import ReplayBuffer
 trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 
 sections = np.array([[350,  60, 350, 100],
-                     [560, 130, 535, 165],
-                     [348, 354, 348, 326]])
+                     [560, 130, 535, 165]])
+#                     [348, 354, 348, 326]])
 #                     [ 35, 200,  70, 200],
 #                     [250,  60, 250, 100]])
 
@@ -52,7 +52,7 @@ for ep in range(episodes):
 
         #action = int(input('Give inut (-180..180 number)'))
         action = int(np.random.randint(-180, 180, size=1))
-        print("action: ",action)
+        print("action: ",action, "-------------")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
         v_new, pos_new, reward, end, section_nr, curr_dist = env.step(gg_action, v, pos, draw, color)
         s = [v[0], v[1], pos[0], pos[1]]
@@ -70,8 +70,8 @@ for ep in range(episodes):
         #print(s)
         #print(s2)
         epreward = epreward + r
-        print("---reward: ", r)
-        print("Section: ", section_nr)
+        print("reward: ", r)
+        #print("Section: ", section_nr)
 
         replay_buffer.add(np.reshape(s, (s_dim,)), np.reshape(a, (a_dim,)), r,
                           terminal, np.reshape(s2, (s_dim,)))

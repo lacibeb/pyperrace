@@ -285,6 +285,28 @@ def train(sess, env, args, actor, critic, actor_noise):
         color = (1 , 0, 0) #kornyezet kirajzolasahoz
         draw = False
 
+        """
+        Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
+        amiben csak ilyen lepesek vannak, raadasul ez a valoszinuseg a tanulasra szant epizidszam elejen magas a 
+        vegen meg alacsony
+        """
+
+        # Ha mas nincs, ne veletlenszeruen lepkedjen
+        random_episode = False
+
+        # generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell lenni es akkor teljesul
+        # egy feltetel
+        # rand_chk = max(0, int(args['max_episodes']) - (i * 3)) / int(args['max_episodes'])
+        # teszt jelleggel ha sose akarunk randomot
+        rand_chk = 0.2
+        # ellenorzeskepp kiirva:
+        # print("randomhoz:", rand_chk)
+
+        # Ha tehat egy random szam kisebb mint egy adott, akkor random lesz az epizod
+        if rnd.uniform(0, 1) < rand_chk:
+            random_episode = True
+
+
         #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
         if i == draws:
             draw = True #kornyezet kirajzolasahoz
@@ -294,31 +316,14 @@ def train(sess, env, args, actor, critic, actor_noise):
         for j in range(int(args['max_episode_len'])):
 
             s = [v[0], v[1], pos[0], pos[1]] #az eredeti kodban s-be van gyujtve az ami a masikban pos és v
-            """
-            Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
-            amiben csak ilyen lepesek vannak, raadasul ez a valoszinuseg a tanulasra szant epizidszam elejen magas a 
-            vegen meg alacsony
-            """
 
-            #Ha mas nincs, ne veletlenszeruen lepkedjen
-            random_episode = False
-            random_step = False
-
-            # generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell lenni es akkor teljesul
-            # egy feltetel
-            #rand_chk = max(0, int(args['max_episodes']) - (i * 3)) / int(args['max_episodes'])
-            #teszt jelleggel ha sose akarunk randomot
-            rand_chk = 0
-            #ellenorzeskepp kiirva:
-            print("randomhoz:", rand_chk)
-
-            #Ha tehat egy random szam kisebb mint egy adott, akkor random lesz az epizod
-            if rnd.uniform(0, 1) < rand_chk:
-                random_episode = True
             # Hasonloan, epizodon belul is lesznek random lepesek. Ha maga az epizod nem random, akkoris, egy egy lepest
             # random csinalunk. Itt viszont a random lepesek gyakorisaga no ahogy egyre elore haladunk az epizodban, es
             # az hogy mennyire az pedig a epizodszammal no (TODO: ezt meg megcsinalni, most csak siman 0.5 a valoszinuseg)
-            if rnd.uniform(0, 1) < 0.05:
+
+            random_step = False
+
+            if rnd.uniform(0, 1) < 0:
                 random_step = True
 
             #Actionok:
@@ -346,7 +351,7 @@ def train(sess, env, args, actor, critic, actor_noise):
 
             #megintcsak a kétfelől összemásolgatott küdok miatt, feleltessünkk meg egymásnak változókat:
             s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
-
+            """
             # a "faja" reward szamitashoz definialunk egy atlag sebesseget: [pixel/lepes] (A picxel helet, egy lepes
             # pedig egy egyseg idot jelent)
             ref_spd = 15
@@ -355,7 +360,8 @@ def train(sess, env, args, actor, critic, actor_noise):
             ref_time = curr_dist / ref_spd
 
             # az alap reward elvileg az eltelt idot adja negativban. Tehat r = reward -
-            r = ref_time + reward
+            """
+            r = reward
             terminal = end
 
             #és akkor a megfeleltetett változókkal már lehet csinálni a replay memory-t:
@@ -426,9 +432,9 @@ def main(args):
         trk_col = np.array([99, 99, 99])  # pálya színe (szürke), a kornyezet inicializalasahoz kell
 
         sections = np.array([[350,  60, 350, 100],
-                             [475, 125, 510, 90],
+                             [425, 105, 430, 95],
                              [500, 140, 530, 110],
-                             [510, 160, 560, 150]])
+                             [520, 160, 580, 150]])
         #                     [ 35, 200,  70, 200],
         #                     [250,  60, 250, 100]])
 
@@ -472,9 +478,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.0001)
-    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.001)
-    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.99)
+    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.000001)
+    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.00001)
+    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.98)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
     parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
