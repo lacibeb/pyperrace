@@ -7,8 +7,8 @@ from replay_buffer import ReplayBuffer
 trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 
 sections = np.array([[350,  60, 350, 100],
-                     [560, 130, 535, 165],
-                     [348, 354, 348, 326]])
+                     [560, 130, 535, 165]])
+#                     [348, 354, 348, 326]])
 #                     [ 35, 200,  70, 200],
 #                     [250,  60, 250, 100]])
 
@@ -21,6 +21,8 @@ batch_size = 10 # batch mérete, ami a tanítási adatokat tartalmazza
 episodes = 1000 # hányszor fusson a tanítás
 random_seed = 123
 
+ref_spd = 20 #referencia sebesseg, rewardhoz, [pixel/lepes]
+
 s_dim = 4 #állapottér dimenziója
 a_dim = 1 #action space dimenzója
 
@@ -30,7 +32,7 @@ draw = True
 
 for ep in range(episodes):
     env.reset()
-    print("----EP.: ", ep) # epizód számának kiírása
+    print("================EP.: ", ep) # epizód számának kiírása
     if draw: # ha rajzolunk
         plt.clf()
         env.draw_track()
@@ -39,26 +41,37 @@ for ep in range(episodes):
     pos = np.array(env.starting_pos)  # kezdőpozíció beállítása
     reward = 0
     epreward = 0
+    ref_dist = 0
     end = False
     color = (1 , 0, 0)
-
+    step = 0
     while not end:
-        action = int(input('Give inut (-180..180 number)'))
-        #action = int(np.random.randint(-180, 180, size=1))
-        print("action: ",action)
+        step = step +1
+        if step == 1:
+            action = 0
+
+        #action = int(input('Give inut (-180..180 number)'))
+        action = int(np.random.randint(-180, 180, size=1))
+        print("action: ",action, "-------------")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
-        v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
+        v_new, pos_new, reward, end, section_nr, curr_dist = env.step(gg_action, v, pos, draw, color)
         s = [v[0], v[1], pos[0], pos[1]]
         s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
         a = action
-        terminal = end
+        # a ref tavolsag legyen hogy adott ref_spd sebesseggel adott reward eltelt ido alatt, (reward most nekunk
+        # tulkepp az eltelt idot adja, negativban) meddig kellett volna eljutni
+        # ref_dist = (-ref_spd * reward) + ref_dist
+        # print("ref_dist: ", ref_dist)
+        # print("curr_dist: ", curr_dist)
+        # r = curr_dist - ref_dist
         r = reward
+        terminal = end
 
         #print(s)
         #print(s2)
-        epreward = epreward + reward
-        print("reward: ",reward)
-        print("Section: ", section_nr)
+        epreward = epreward + r
+        print("reward: ", r)
+        #print("Section: ", section_nr)
 
         replay_buffer.add(np.reshape(s, (s_dim,)), np.reshape(a, (a_dim,)), r,
                           terminal, np.reshape(s2, (s_dim,)))
