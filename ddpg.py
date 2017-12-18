@@ -19,6 +19,7 @@ from gym import wrappers
 import tflearn
 import argparse
 import pprint as pp
+import random as rnd
 
 from replay_buffer import ReplayBuffer
 
@@ -284,43 +285,81 @@ def train(sess, env, args, actor, critic, actor_noise):
         color = (1 , 0, 0) #kornyezet kirajzolasahoz
         draw = False
 
+        #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
         if i == draws:
             draw = True #kornyezet kirajzolasahoz
-            draws = draws + int(args['max_episodes']) / 50
+            draws = draws + int(args['max_episodes']) / 100
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
 
-            '''if args['render_env']:
-                env.render()'''
             s = [v[0], v[1], pos[0], pos[1]] #az eredeti kodban s-be van gyujtve az ami a masikban pos és v
-            # Added exploration noise
-            # a = actor.predict(np.reshape(s, (1, 3))) + (1. / (1. + i))
-            # exploration hoz kellenek noisek. de a másik az inkbb csak continoushoz jó.
+            """
+            Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
+            amiben csak ilyen lepesek vannak, raadasul ez a valoszinuseg a tanulasra szant epizidszam elejen magas a 
+            vegen meg alacsony
+            """
 
+            #Ha mas nincs, ne veletlenszeruen lepkedjen
+            random_episode = False
+            random_step = False
+
+            # generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell lenni es akkor teljesul
+            # egy feltetel
+            #rand_chk = max(0, int(args['max_episodes']) - (i * 3)) / int(args['max_episodes'])
+            #teszt jelleggel ha sose akarunk randomot
+            rand_chk = 0
+            #ellenorzeskepp kiirva:
+            print("randomhoz:", rand_chk)
+
+            #Ha tehat egy random szam kisebb mint egy adott, akkor random lesz az epizod
+            if rnd.uniform(0, 1) < rand_chk:
+                random_episode = True
+            # Hasonloan, epizodon belul is lesznek random lepesek. Ha maga az epizod nem random, akkoris, egy egy lepest
+            # random csinalunk. Itt viszont a random lepesek gyakorisaga no ahogy egyre elore haladunk az epizodban, es
+            # az hogy mennyire az pedig a epizodszammal no (TODO: ezt meg megcsinalni, most csak siman 0.5 a valoszinuseg)
+            if rnd.uniform(0, 1) < 0.05:
+                random_step = True
+
+            #Actionok:
+
+            # az elso lepest mindenkepp elore tegyuk meg
             if j == 0:
-                a = 1
+                a = 0
+
+            # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
+            # de a lepes random, na akkor randomot lepunk:
+            elif random_episode or random_step:
+                a = int(np.random.randint(-180, 180, size=1))
+                print("Random action:", a)
+            # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
-                #TODO: kéne majd az explorationnal is foglalkozni
                 a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise())
                 print(a)
-                #a = int(np.random.randint(1, 9, size=1)) #választunk egy actiont
 
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
             #általában ez a fenti két sor egymsor. csak nálunk most így van megírva a környezet, hogy így kell neki beadni az actiont
 
             #megnézzük mit mond a környezet az adott álapotban az adott action-ra:
             #s2, r, terminal, info = env.step(a)
-            v_new, pos_new, reward, end = env.step(gg_action, v, pos, draw, color)
+            v_new, pos_new, reward, end, section_nr, curr_dist = env.step(gg_action, v, pos, draw, color)
 
             #megintcsak a kétfelől összemásolgatott küdok miatt, feleltessünkk meg egymásnak változókat:
             s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
-            r = reward
+
+            # a "faja" reward szamitashoz definialunk egy atlag sebesseget: [pixel/lepes] (A picxel helet, egy lepes
+            # pedig egy egyseg idot jelent)
+            ref_spd = 15
+
+            #Az adott helyre eljutni az atlag "sebesseggel" elvileg ennyi lepes (ido):
+            ref_time = curr_dist / ref_spd
+
+            # az alap reward elvileg az eltelt idot adja negativban. Tehat r = reward -
+            r = ref_time + reward
             terminal = end
 
             #és akkor a megfeleltetett változókkal már lehet csinálni a replay memory-t:
-            replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r,
-                              terminal, np.reshape(s2, (actor.s_dim,)))
+            replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r, terminal, np.reshape(s2, (actor.s_dim,)))
 
             # Keep adding experience to the memory until there are at least minibatch size samples
             if replay_buffer.size() > int(args['minibatch_size']):
@@ -374,8 +413,7 @@ def train(sess, env, args, actor, critic, actor_noise):
                 writer.add_summary(summary_str, i)
                 writer.flush()
 
-                print('| Reward: {:d} | Episode: {:d} | Qmax: {:.4f}'.format(int(ep_reward), \
-                                                                             i, (ep_ave_max_q / float(j))))
+                print('| Reward: {:d} | Episode: {:d} | Qmax: {:.4f}'.format(int(ep_reward), i, (ep_ave_max_q / float(j))))
 
                 break
 
@@ -386,8 +424,16 @@ def main(args):
         #env = gym.make(args['env'])
 
         trk_col = np.array([99, 99, 99])  # pálya színe (szürke), a kornyezet inicializalasahoz kell
-        start_line = np.array([350, 60, 350, 100])  # startvonal vegpontjai, a kornyezet inicializalasahoz kell, kozeppéről indul
-        env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
+
+        sections = np.array([[350,  60, 350, 100],
+                             [475, 125, 510, 90],
+                             [500, 140, 530, 110],
+                             [510, 160, 560, 150]])
+        #                     [ 35, 200,  70, 200],
+        #                     [250,  60, 250, 100]])
+
+        #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
+        env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
 
         np.random.seed(int(args['random_seed']))
         tf.set_random_seed(int(args['random_seed']))
