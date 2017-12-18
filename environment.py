@@ -94,8 +94,6 @@ class PaperRaceEnv:
         # es az elmozdulas hanyad reszenel
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
-
-
         #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
             X = np.array([pos_old[0], pos_new[0]])
@@ -153,13 +151,13 @@ class PaperRaceEnv:
         # TODO: kesobb majd megfontolando hogy a koztes szakaszoknal is kapjon reszido szerintit, hatha a tanulast segiti.
 
         #ha atszakitunk egy szakaszt kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
-        elif crosses:
-            ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
-            reward = 5
+        #elif crosses:
+        #    ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
+        #    reward = 5
 
         elif crosses and section_nr == len(self.sections)-1:
             ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
-            reward = t2-1
+            reward = -t2
             end = True
 
         # normál esetben a reward:
@@ -173,7 +171,7 @@ class PaperRaceEnv:
         return spd_new, pos_new, reward, end, section_nr, curr_dist
         #return np.array([spd_new[0], spd_new[1], pos_new[0], pos_new[1]]), reward if reward >= 0 else 2*reward, end
 
-    #TODO 1.2: lecsekkolni mukodik-e ez a sectionpass fuggveny
+
     def sectionpass(self, pos, spd):
         """
         Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor crosses = 1 - et ad vissza(true)
