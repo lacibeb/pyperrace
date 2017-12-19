@@ -423,7 +423,7 @@ def train(sess, env, args, actor, critic, actor_noise):
 
                 break
 
-
+#EBBEN VALAMI NEMJO  REWARDOKKAL NEM UGYANAZ MINT A ENVTESTBEN???
 def main(args):
     with tf.Session() as sess:
 
@@ -431,15 +431,19 @@ def main(args):
 
         trk_col = np.array([99, 99, 99])  # pálya színe (szürke), a kornyezet inicializalasahoz kell
 
-        sections = np.array([[350,  60, 350, 100],
-                             [425, 105, 430, 95],
-                             [500, 140, 530, 110],
-                             [520, 160, 580, 150]])
+        #sections = np.array([[350,  60, 350, 100],
+        #                    [425, 105, 430, 95],
+        #                    [500, 140, 530, 110],
+        #                    [520, 160, 580, 150]])
         #                     [ 35, 200,  70, 200],
         #                     [250,  60, 250, 100]])
 
+        sections = np.array([[273, 125, 273,  64],
+                             [394, 157, 440, 102],
+                             [331, 212, 331, 267]])
+
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
-        env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
+        env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
 
         np.random.seed(int(args['random_seed']))
         tf.set_random_seed(int(args['random_seed']))
@@ -478,16 +482,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.000001)
-    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.00001)
+    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.00001)
+    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.001)
     parser.add_argument('--gamma', help='discount factor for critic updates', default=0.98)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
-    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
+    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=64)
 
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
-    parser.add_argument('--random-seed', help='random seed for repeatability', default=1324)
+    parser.add_argument('--random-seed', help='random seed for repeatability', default=134)
     parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=5000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')

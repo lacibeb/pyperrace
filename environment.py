@@ -102,10 +102,12 @@ class PaperRaceEnv:
 #VALAMI SZAR A KURVA PALYAROL LEMENETELKOR: NEM TUDJA a curr_pos-t lekerni a dict-bol, a get_ref_time
         # ha lemegy a palyarol:
         if not self.is_on_track(pos_new):
+
+
             # a get dist, nem tudja lekerdeni ha palyan kivuli ponthoz kell, ezert kieseskor a pos_old, azaz ami meg
             # palyan volt, annak a tavolsagat kerdezzuk le.
             ref_time, curr_dist, pos = self.get_ref_time(pos_old, ref_spd)
-
+            """
             # mivel ha az elso lepes eleve olyan hogy kilep a palyarol, akkor a kezdo pozicio tavolsagat nezi, ami
             # ugyancsak a get_dist miatt a legnyagyobb szam, ezert ilyenkor kurvanagy lenne a reward. Szoval ha az elso
             # lepessel kiesunk, azt kulon kezeljuk
@@ -118,7 +120,7 @@ class PaperRaceEnv:
                 reward = -50 + curr_dist
             #print("envreward, ", reward)
             #print("curr dist= ", curr_dist)
-            end = True
+            
             #a megtett uttat kinullazzuk, hogy jo nagy buntit jelentsen a kieses
             # itt kene egy fuggveny ami megcsinalja a visszapattanast. Most a get_rewarddal van osszehegesztve valami,
             # de szar. jobb lenne kulon direkt erre egy fv
@@ -126,7 +128,7 @@ class PaperRaceEnv:
 
             #TODO 1: kisikláskor ne legyen vége, szovaal nem csak rewardot adni hanem sebessegvektorrt es poziciot is
             #kell ebben az esetben modositani
-
+            """
             """
             Az init-ben meghivasra kerul ez a get_dist fuggveny, ami elvileg csinál egy dists nevu dict-et, amiben
             összetartozó pálya belső ív koordináták és hozzájuk tartozó távolság értékek vannak. Namost a gondolat a 
@@ -136,13 +138,17 @@ class PaperRaceEnv:
             Adunk egy kurva nagy büntit, és az kiesés után azt mondjuk hogy induljon tovább ebből a pontból az autó, 
             mégpedig a legutolsó lépés sebességével párhuzamos irányba. Kis kezdeti sebességgel.
             """
+            """
             #pos_new = pos
             #spd_new = spd_new/LA.norm(spd_new)
             #TODO 1.1: INNEN folytatni. Nem fasza. random lepkedve kifagy. manualban jatszva faja, de a szakaszok es
             #celbaerkezes meg hianyzik.
+            """
+            reward = -100
+            end = True
 
         # ha visszafelé indul:
-        elif self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]:
+        elif (self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]) or (crosses and section_nr == 0):
             reward = -200
             curr_dist = 0.1
             end = True
@@ -151,9 +157,9 @@ class PaperRaceEnv:
         # TODO: kesobb majd megfontolando hogy a koztes szakaszoknal is kapjon reszido szerintit, hatha a tanulast segiti.
 
         #ha atszakitunk egy szakaszt kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
-        #elif crosses:
-        #    ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
-        #    reward = 5
+        elif crosses:
+            ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
+            reward = 15
 
         elif crosses and section_nr == len(self.sections)-1:
             ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
@@ -232,7 +238,7 @@ class PaperRaceEnv:
                     crosses = False
                     t2 = 0
                     section_nr = 0
-
+        #print("CR: ",crosses,"t2: ",t2)
         return crosses, t2, section_nr
 
     def is_on_track(self, pos):
