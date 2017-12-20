@@ -278,7 +278,7 @@ def train(sess, env, args, actor, critic, actor_noise):
     for i in range(int(args['max_episodes'])):
 
         env.reset() #ezt nem ertem pontosan mit csinal, de jobb ha itt van :)
-        v = np.array([1, 0])  #az elején a sebesség jobbra 1 - talán jobb lenne ha a reset része lenne
+        v =  np.array(env.starting_spd)  # kezdeti sebeesseg, ahogy a kornyezet adja
         pos = np.array(env.starting_pos)  #sebesség mellé a kezdeti poz. is kell. Ez a kezdőpozíció beállítása
 
         ep_reward = 0

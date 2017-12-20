@@ -58,7 +58,7 @@ for ep in range(episodes):
     color = (1 , 0, 0)
     step = 0
     while not end:
-        step = step +1
+        step = step + 1
         if step == 1:
             action = 0
 

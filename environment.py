@@ -45,7 +45,7 @@ class PaperRaceEnv:
         start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
         start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
         # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
-        self.starting_pos = np.array([start_x, start_y]) + e_start_spd * 2
+        self.starting_pos = np.array([start_x, start_y]) + np.array([int(e_start_spd[0] * 10), int(e_start_spd[1] * 10)])
         self.random_init = random_init # True, ha be van kapcsolva az autó véletlen pozícióból való indítása
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
@@ -98,20 +98,31 @@ class PaperRaceEnv:
         e1_spd_old = spd_old / np.linalg.norm(spd_old)
         e2_spd_old = np.array([-1 * e1_spd_old[1], e1_spd_old[0]])
 
+        # a sebessegvaltozas lokalisban
         spd_chn = np.asmatrix(spd_chn)
 
         # a sebesseg valtozás globálisban:
         spd_chn_glb = np.round(np.column_stack((e1_spd_old, e2_spd_old)) * spd_chn.transpose())
 
-        # az új sebességvektor:
+        # az új sebességvektor globalisban:
         spd_new = spd_old + np.ravel(spd_chn_glb)
+
+        #az uj pozicio globalisban:
         pos_new = pos_old + spd_new
 
         # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitottunk-e at szakaszt, es ha igen melyiket,
         # es az elmozdulas hanyad reszenel
-        print("PO:", pos_old, "      SN:", spd_new)
+        #print("PO:", pos_old, "      SN:", spd_new)
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
-        print("SC: ",crosses,"sect: ",section_nr, "t2: ", t2)
+        #print("SC: ",crosses,"sect: ",section_nr, "t2: ", t2)
+
+ITT valami szar, a dist, akezdedskor 1600 koruli ertek, a pos new-ben meg mar jo 15 koruli.....
+        print("PosOld:", pos_old, "PosNew:", pos_new)
+        # megnezzuk hol jarunk (get_dist.. majd atirni ezt a fugvenyt)
+        ref_time, curr_dist_old, pos_temp_old = self.get_ref_time(pos_old, ref_spd)
+        # megnezzuk, az uj pozicioban hol jarunk:
+        ref_time, curr_dist_new, pos_temp_new = self.get_ref_time(pos_new, ref_spd)
+        print(curr_dist_old, curr_dist_new)
 
         #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
@@ -165,9 +176,15 @@ class PaperRaceEnv:
             reward = -100
             end = True
 
-        # ha visszafelé indul:
+        # ha visszafelé indul, azaz a dist uj, kisebb mint  adist elozo:
         #elif (self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]) or\
 
+        elif curr_dist_new < curr_dist_old:
+            reward = -190
+            curr_dist = 0.1
+            end = True
+
+        #ha a 0. szakaszt, azaz startvonalat szakit at:
         elif (crosses and section_nr == 0):
             reward = -200
             curr_dist = 0.1
