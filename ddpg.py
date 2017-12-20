@@ -280,8 +280,13 @@ def train(sess, env, args, actor, critic, actor_noise):
         env.reset() #ezt nem ertem pontosan mit csinal, de jobb ha itt van :)
         v = np.array([1, 0])  #az elején a sebesség jobbra 1 - talán jobb lenne ha a reset része lenne
         pos = np.array(env.starting_pos)  #sebesség mellé a kezdeti poz. is kell. Ez a kezdőpozíció beállítása
+
         ep_reward = 0
         ep_ave_max_q = 0
+
+        section_nr = 0
+        in_section = 0
+
         color = (1 , 0, 0) #kornyezet kirajzolasahoz
         draw = False
 
@@ -290,14 +295,13 @@ def train(sess, env, args, actor, critic, actor_noise):
         amiben csak ilyen lepesek vannak, raadasul ez a valoszinuseg a tanulasra szant epizidszam elejen magas a 
         vegen meg alacsony
         """
-
         # Ha mas nincs, ne veletlenszeruen lepkedjen
         random_episode = False
 
         # generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell lenni es akkor teljesul
         # egy feltetel
         # rand_chk = max(0, int(args['max_episodes']) - (i * 3)) / int(args['max_episodes'])
-        # teszt jelleggel ha sose akarunk randomot
+        # teszt jelleggel mindig fixen. (kesobb majd atirjuk hogy csokkenjen a valoszinuseg
         rand_chk = 0.2
         # ellenorzeskepp kiirva:
         # print("randomhoz:", rand_chk)
@@ -305,7 +309,6 @@ def train(sess, env, args, actor, critic, actor_noise):
         # Ha tehat egy random szam kisebb mint egy adott, akkor random lesz az epizod
         if rnd.uniform(0, 1) < rand_chk:
             random_episode = True
-
 
         #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
         if i == draws:
@@ -317,13 +320,10 @@ def train(sess, env, args, actor, critic, actor_noise):
 
             s = [v[0], v[1], pos[0], pos[1]] #az eredeti kodban s-be van gyujtve az ami a masikban pos és v
 
-            # Hasonloan, epizodon belul is lesznek random lepesek. Ha maga az epizod nem random, akkoris, egy egy lepest
-            # random csinalunk. Itt viszont a random lepesek gyakorisaga no ahogy egyre elore haladunk az epizodban, es
-            # az hogy mennyire az pedig a epizodszammal no (TODO: ezt meg megcsinalni, most csak siman 0.5 a valoszinuseg)
-
             random_step = False
 
-            if rnd.uniform(0, 1) < 0:
+            in_section = in_section + section_nr
+            if rnd.uniform(0, 1) < in_section * 0.1:
                 random_step = True
 
             #Actionok:
@@ -339,7 +339,7 @@ def train(sess, env, args, actor, critic, actor_noise):
                 print("Random action:", a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
-                a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise())
+                a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-3, 3, size=1))
                 print(a)
 
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
@@ -362,6 +362,7 @@ def train(sess, env, args, actor, critic, actor_noise):
             # az alap reward elvileg az eltelt idot adja negativban. Tehat r = reward -
             """
             r = reward
+            #print("rew:", r)
             terminal = end
 
             #és akkor a megfeleltetett változókkal már lehet csinálni a replay memory-t:
@@ -369,12 +370,10 @@ def train(sess, env, args, actor, critic, actor_noise):
 
             # Keep adding experience to the memory until there are at least minibatch size samples
             if replay_buffer.size() > int(args['minibatch_size']):
-                s_batch, a_batch, r_batch, t_batch, s2_batch = \
-                    replay_buffer.sample_batch(int(args['minibatch_size']))
+                s_batch, a_batch, r_batch, t_batch, s2_batch = replay_buffer.sample_batch(int(args['minibatch_size']))
 
                 # Calculate targets
-                target_q = critic.predict_target(
-                    s2_batch, actor.predict_target(s2_batch))
+                target_q = critic.predict_target(s2_batch, actor.predict_target(s2_batch))
 
                 y_i = []
                 for k in range(int(args['minibatch_size'])):
@@ -384,8 +383,7 @@ def train(sess, env, args, actor, critic, actor_noise):
                         y_i.append(r_batch[k] + critic.gamma * target_q[k])
 
                 # Update the critic given the targets
-                predicted_q_value, _ = critic.train(
-                    s_batch, a_batch, np.reshape(y_i, (int(args['minibatch_size']), 1)))
+                predicted_q_value, _ = critic.train(s_batch, a_batch, np.reshape(y_i, (int(args['minibatch_size']), 1)))
 
                 ep_ave_max_q += np.amax(predicted_q_value)
 
@@ -419,7 +417,7 @@ def train(sess, env, args, actor, critic, actor_noise):
                 writer.add_summary(summary_str, i)
                 writer.flush()
 
-                print('| Reward: {:d} | Episode: {:d} | Qmax: {:.4f}'.format(int(ep_reward), i, (ep_ave_max_q / float(j))))
+                print('| Reward: {:.3f} | Episode: {:d} | Qmax: {:.4f}'.format(ep_reward, i, (ep_ave_max_q / float(j))))
 
                 break
 
@@ -438,8 +436,9 @@ def main(args):
         #                     [ 35, 200,  70, 200],
         #                     [250,  60, 250, 100]])
 
-        sections = np.array([[273, 125, 273,  64],
-                             [394, 157, 440, 102],
+        #sections = np.array([[273, 125, 273,  64],
+        #                     [347, 125, 347,  65],
+        sections = np.array([[394, 157, 440, 102],
                              [331, 212, 331, 267]])
 
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
@@ -482,16 +481,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.00001)
-    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.001)
-    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.98)
+    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.0000001)
+    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.00001)
+    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.99)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
-    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=64)
+    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
 
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
-    parser.add_argument('--random-seed', help='random seed for repeatability', default=134)
+    parser.add_argument('--random-seed', help='random seed for repeatability', default=1231)
     parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=5000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')

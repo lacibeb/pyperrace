@@ -29,13 +29,30 @@ class PaperRaceEnv:
         self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
         # Az első szakasz a sectionban, lesz a startvonal
         self.sections = sections
+
+        # A kezdo pozicio a startvonal fele, es onnan 1-1 pixellel "arrebb" Azert hogy ne legyen a startvonal es a
+        # kezdeti sebesseg metszo.
+        # ezen a ponton section_nr = 0, az elso szakasz a listaban (sections) a startvonal
         start_line = sections[self.section_nr]
-        self.start_line = start_line  # az első szkasz közepén áll először az autó
+        #ez valmiert igy volt, egyelore igy hagyom...
+        self.start_line = start_line
+        # A startvonalra meroleges iranyvektor:
+        e_start_x = int(np.floor((start_line[0] - start_line[2])))
+        e_start_y = int(np.floor((start_line[1] - start_line[3])))
+        e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
+
+        # A startvonal közepe:
         start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
         start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
-
-        self.starting_pos = np.array([start_x, start_y]) # az autó kezdő pozíciója
+        # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
+        self.starting_pos = np.array([start_x, start_y]) + e_start_spd * 2
         self.random_init = random_init # True, ha be van kapcsolva az autó véletlen pozícióból való indítása
+
+        #a kezdo sebesseget a startvonalra merolegesre akarjuk:
+        self.starting_spd = e_start_spd * 10
+
+
+
         self.gg_actions = None # az action-ökhöz tartozó vektor értékeit cash-eli a legelajén és ebben tárolja
         self.prev_dist = 0
 
@@ -92,17 +109,18 @@ class PaperRaceEnv:
 
         # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitottunk-e at szakaszt, es ha igen melyiket,
         # es az elmozdulas hanyad reszenel
+        print("PO:", pos_old, "      SN:", spd_new)
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
+        print("SC: ",crosses,"sect: ",section_nr, "t2: ", t2)
 
         #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
             X = np.array([pos_old[0], pos_new[0]])
             Y = np.array([pos_old[1], pos_new[1]])
             plt.plot(X, Y, color=color)
-#VALAMI SZAR A KURVA PALYAROL LEMENETELKOR: NEM TUDJA a curr_pos-t lekerni a dict-bol, a get_ref_time
+
         # ha lemegy a palyarol:
         if not self.is_on_track(pos_new):
-
 
             # a get dist, nem tudja lekerdeni ha palyan kivuli ponthoz kell, ezert kieseskor a pos_old, azaz ami meg
             # palyan volt, annak a tavolsagat kerdezzuk le.
@@ -148,23 +166,24 @@ class PaperRaceEnv:
             end = True
 
         # ha visszafelé indul:
-        elif (self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]) or (crosses and section_nr == 0):
+        #elif (self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]) or\
+
+        elif (crosses and section_nr == 0):
             reward = -200
             curr_dist = 0.1
             end = True
 
         # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
         # TODO: kesobb majd megfontolando hogy a koztes szakaszoknal is kapjon reszido szerintit, hatha a tanulast segiti.
+        elif crosses and section_nr == len(self.sections)-1:
+            ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
+            reward = -t2
+            end = True
 
         #ha atszakitunk egy szakaszt kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
         elif crosses:
             ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
             reward = 15
-
-        elif crosses and section_nr == len(self.sections)-1:
-            ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
-            reward = -t2
-            end = True
 
         # normál esetben a reward:
         else:
