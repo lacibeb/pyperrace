@@ -12,9 +12,9 @@ trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 #                     [ 35, 200,  70, 200],
 #                     [250,  60, 250, 100]])
 
-sections = np.array([[273, 125, 273, 64],
-                     [327, 125, 327, 65],
-                     [394, 157, 440, 102]])
+#sections = np.array([[273, 125, 273, 64],
+#                     [327, 125, 327, 65],
+#                     [394, 157, 440, 102]])
 #                     [348, 354, 348, 326]])
 #                     [ 35, 200,  70, 200],
 #                     [250,  60, 250, 100]])
@@ -47,12 +47,11 @@ for ep in range(episodes):
         plt.clf()
         env.draw_track()
     v = np.array(env.starting_spd)  # az elején a sebesség a startvonalra meroleges
-    print(v)
+    #print(v)
     # ezt könnyen megváltoztatja, tulajdonképen csak arra jó, hogy nem 0
     pos = np.array(env.starting_pos)  # kezdőpozíció beállítása
-    print(pos)
     reward = 0
-    epreward = 0
+    ep_reward = 0
     ref_dist = 0
     end = False
     color = (1 , 0, 0)

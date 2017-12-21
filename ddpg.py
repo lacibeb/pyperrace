@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt #a kirajzoláshoz kell, de lassú szar
 #import gym
 from environment import PaperRaceEnv
-from gym import wrappers
+#from gym import wrappers
 import tflearn
 import argparse
 import pprint as pp
@@ -278,7 +278,7 @@ def train(sess, env, args, actor, critic, actor_noise):
     for i in range(int(args['max_episodes'])):
 
         env.reset() #ezt nem ertem pontosan mit csinal, de jobb ha itt van :)
-        v =  np.array(env.starting_spd)  # kezdeti sebeesseg, ahogy a kornyezet adja
+        v = np.array(env.starting_spd)  # kezdeti sebeesseg, ahogy a kornyezet adja
         pos = np.array(env.starting_pos)  #sebesség mellé a kezdeti poz. is kell. Ez a kezdőpozíció beállítása
 
         ep_reward = 0
@@ -287,8 +287,12 @@ def train(sess, env, args, actor, critic, actor_noise):
         section_nr = 0
         in_section = 0
 
-        color = (1 , 0, 0) #kornyezet kirajzolasahoz
+        color = (1, 0, 0) #kornyezet kirajzolasahoz
         draw = False
+        #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
+        if i == draws:
+            draw = True #kornyezet kirajzolasahoz
+            draws = draws + int(args['max_episodes']) / 100
 
         """
         Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
@@ -309,11 +313,6 @@ def train(sess, env, args, actor, critic, actor_noise):
         # Ha tehat egy random szam kisebb mint egy adott, akkor random lesz az epizod
         if rnd.uniform(0, 1) < rand_chk:
             random_episode = True
-
-        #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
-        if i == draws:
-            draw = True #kornyezet kirajzolasahoz
-            draws = draws + int(args['max_episodes']) / 100
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):

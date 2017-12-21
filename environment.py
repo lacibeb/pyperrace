@@ -39,17 +39,17 @@ class PaperRaceEnv:
         # A startvonalra meroleges iranyvektor:
         e_start_x = int(np.floor((start_line[0] - start_line[2])))
         e_start_y = int(np.floor((start_line[1] - start_line[3])))
-        e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
+        self.e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
 
         # A startvonal közepe:
         self.start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
         self.start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
         # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
-        self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(e_start_spd[0] * 10), int(e_start_spd[1] * 10)])
+        self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
         self.random_init = random_init # True, ha be van kapcsolva az autó véletlen pozícióból való indítása
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = e_start_spd * 10
+        self.starting_spd = self.e_start_spd * 10
 
 
 
@@ -116,13 +116,12 @@ class PaperRaceEnv:
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
         #print("SC: ",crosses,"sect: ",section_nr, "t2: ", t2)
 
-#TODO: ITT valami szar, a dist, akezdedskor 1600 koruli ertek, a pos new-ben meg mar jo 15 koruli.....
-        print("PosOld:", pos_old, "PosNew:", pos_new)
+        #print("PosOld:", pos_old, "PosNew:", pos_new)
         # megnezzuk hol jarunk (get_dist.. majd atirni ezt a fugvenyt)
         ref_time, curr_dist_old, pos_temp_old = self.get_ref_time(pos_old, ref_spd)
         # megnezzuk, az uj pozicioban hol jarunk:
         ref_time, curr_dist_new, pos_temp_new = self.get_ref_time(pos_new, ref_spd)
-        print(curr_dist_old, curr_dist_new)
+        #print(curr_dist_old, curr_dist_new)
 
         #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
@@ -380,6 +379,7 @@ class PaperRaceEnv:
         indices = [p[0] for p in np.nonzero(tmp)] # ha volt benne piros, akkor lekérjük a pozícióját
         offset = [indices[1] - r, indices[0] - r] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
         pos = np.array(pos_new + offset) # kiszámoljuk a pályán lévő pozícióját a pontnak
+        #print("-------Pos: ",pos)
         curr_dist = self.dists[tuple(pos)] # a dist_dict-ből lekérjük a start-tól való távolságát
         #reward = curr_dist - self.prev_dist # kivonjuk az előző lépésben kapott távolságból
         #self.prev_dist = curr_dist # atz új lesz a régi, hogy a követkző lépésben legyen miből kivonni
@@ -406,7 +406,11 @@ class PaperRaceEnv:
         """
 
         dist_dict_in = {} # dictionary, (pálya belső pontja, távolság) párokat tartalmaz
-        start_point = np.array([self.start_x, self.start_y])
+
+        # a generalashoz a start pozicio alapbol startvonal kozepe lenne. De valahogy a startvonal kozeleben a dist az
+        # szar tud lenni ezert az algoritmus kezdo pontjat a startvonal kicsit visszabbra tesszuk.
+        # (TODO: megerteni miert szarakodik a dist, es kijavitani)
+        start_point = np.array([self.start_x, self.start_y]) - np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
         trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
         col = rgb2gray(np.reshape(np.array(self.track_inside_color), (1, 1, 3)))[0, 0]
         tmp = [0]
