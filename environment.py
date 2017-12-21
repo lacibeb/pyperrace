@@ -42,10 +42,10 @@ class PaperRaceEnv:
         e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
 
         # A startvonal közepe:
-        start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
-        start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
+        self.start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
+        self.start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
         # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
-        self.starting_pos = np.array([start_x, start_y]) + np.array([int(e_start_spd[0] * 10), int(e_start_spd[1] * 10)])
+        self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(e_start_spd[0] * 10), int(e_start_spd[1] * 10)])
         self.random_init = random_init # True, ha be van kapcsolva az autó véletlen pozícióból való indítása
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
@@ -116,7 +116,7 @@ class PaperRaceEnv:
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
         #print("SC: ",crosses,"sect: ",section_nr, "t2: ", t2)
 
-ITT valami szar, a dist, akezdedskor 1600 koruli ertek, a pos new-ben meg mar jo 15 koruli.....
+#TODO: ITT valami szar, a dist, akezdedskor 1600 koruli ertek, a pos new-ben meg mar jo 15 koruli.....
         print("PosOld:", pos_old, "PosNew:", pos_new)
         # megnezzuk hol jarunk (get_dist.. majd atirni ezt a fugvenyt)
         ref_time, curr_dist_old, pos_temp_old = self.get_ref_time(pos_old, ref_spd)
@@ -406,7 +406,7 @@ ITT valami szar, a dist, akezdedskor 1600 koruli ertek, a pos new-ben meg mar jo
         """
 
         dist_dict_in = {} # dictionary, (pálya belső pontja, távolság) párokat tartalmaz
-        start_point = self.starting_pos
+        start_point = np.array([self.start_x, self.start_y])
         trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
         col = rgb2gray(np.reshape(np.array(self.track_inside_color), (1, 1, 3)))[0, 0]
         tmp = [0]
