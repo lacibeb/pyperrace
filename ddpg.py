@@ -78,12 +78,13 @@ class ActorNetwork(object):
 
     def create_actor_network(self):
         inputs = tflearn.input_data(shape=[None, self.s_dim])
-        net = tflearn.fully_connected(inputs, 40)
+        net = tflearn.fully_connected(inputs, 800)
         net = tflearn.layers.normalization.batch_normalization(net)
         net = tflearn.activations.relu(net)
-        net = tflearn.fully_connected(net, 30)
+        net = tflearn.fully_connected(net, 600)
         net = tflearn.layers.normalization.batch_normalization(net)
         net = tflearn.activations.relu(net)
+
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
         out = tflearn.fully_connected(
@@ -166,14 +167,15 @@ class CriticNetwork(object):
     def create_critic_network(self):
         inputs = tflearn.input_data(shape=[None, self.s_dim])
         action = tflearn.input_data(shape=[None, self.a_dim])
-        net = tflearn.fully_connected(inputs, 40)
+        net = tflearn.fully_connected(inputs, 800)
         net = tflearn.layers.normalization.batch_normalization(net)
         net = tflearn.activations.relu(net)
 
+
         # Add the action tensor in the 2nd hidden layer
         # Use two temp layers to get the corresponding weights and biases
-        t1 = tflearn.fully_connected(net, 30)
-        t2 = tflearn.fully_connected(action, 30)
+        t1 = tflearn.fully_connected(net, 600)
+        t2 = tflearn.fully_connected(action, 600)
 
         net = tflearn.activation(
             tf.matmul(net, t1.W) + tf.matmul(action, t2.W) + t2.b, activation='relu')
@@ -338,11 +340,11 @@ def train(sess, env, args, actor, critic, actor_noise):
             # de a lepes random, na akkor randomot lepunk:
             if random_episode or random_step:
                 a = int(np.random.randint(-180, 180, size=1))
-                print("Random action:", a)
+                #print("Random action:", a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
                 a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-3, 3, size=1))
-                print(a)
+                #print(a)
 
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
             #általában ez a fenti két sor egymsor. csak nálunk most így van megírva a környezet, hogy így kell neki beadni az actiont
@@ -492,12 +494,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.000001)
-    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.0001)
+    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.0000001)
+    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.00001)
     parser.add_argument('--gamma', help='discount factor for critic updates', default=0.985)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
-    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
+    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=128)
 
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')

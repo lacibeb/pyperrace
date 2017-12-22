@@ -332,11 +332,11 @@ class PaperRaceEnv:
             self.prev_dist = self.get_ref_time(self.starting_pos)
         """
         if self.random_init:
-            print("sections_nr: ", len(self.sections))
+            #print("sections_nr: ", len(self.sections))
             self.section_nr = randint(0, len(self.sections) - 2)
         else:
             self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
-        print("SectNr: ", self.section_nr)
+        #print("SectNr: ", self.section_nr)
 
         start_line = self.sections[self.section_nr]
 
