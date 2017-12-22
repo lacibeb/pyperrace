@@ -19,12 +19,19 @@ trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 #                     [ 35, 200,  70, 200],
 #                     [250,  60, 250, 100]])
 
-sections = np.array([[394, 157, 440, 102],
-                     [331, 212, 331, 267]])
+#sections = np.array([[394, 157, 440, 102],
+#                     [331, 212, 331, 267]])
+
+sections = np.array([[273, 125, 273, 64],
+                     [333, 125, 333, 64],
+                     [394, 157, 440, 102],
+                     [394, 167, 450, 132],
+                     [331, 212, 331, 267],
+                     [213, 125, 213, 64]])
 
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
-env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False) # paperrace környezet létrehozása
+env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=True) # paperrace környezet létrehozása
 
 mem_size = 100 # a memória mérete, amiből a batch-be válogatunk
 batch_size = 10 # batch mérete, ami a tanítási adatokat tartalmazza
@@ -61,8 +68,8 @@ for ep in range(episodes):
         if step == 1:
             action = 0
 
-        action = int(input('Give inut (-180..180 number)'))
-        #action = int(np.random.randint(-180, 180, size=1))
+        #action = int(input('Give inut (-180..180 number)'))
+        action = int(np.random.randint(-180, 180, size=1))
         print("action: ",action, "-------------")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
         v_new, pos_new, reward, end, section_nr, curr_dist = env.step(gg_action, v, pos, draw, color)

@@ -292,7 +292,11 @@ def train(sess, env, args, actor, critic, actor_noise):
         #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
         if i == draws:
             draw = True #kornyezet kirajzolasahoz
-            draws = draws + int(args['max_episodes']) / 100
+            draws = draws + int(args['max_episodes']) / 10000
+
+        if draw:  # ha rajzolunk
+            plt.clf()
+            env.draw_track()
 
         """
         Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
@@ -321,7 +325,6 @@ def train(sess, env, args, actor, critic, actor_noise):
 
             random_step = False
 
-
             #in_section = in_section + section_nr
             #if rnd.uniform(0, 1) < in_section * 0.1:
             #    random_step = True
@@ -330,10 +333,6 @@ def train(sess, env, args, actor, critic, actor_noise):
                 random_step = True
 
             #Actionok:
-
-            # az elso lepest mindenkepp elore tegyuk meg
-            #if j == 0:
-            #    a = 0
 
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
@@ -412,10 +411,13 @@ def train(sess, env, args, actor, critic, actor_noise):
             ep_reward += r
 
             if terminal:
+                #Ha egybol (J=0-nal vege)
+                if j == 0:
+                    j = 1
                 summary_str = sess.run(summary_ops, feed_dict={
                     summary_vars[0]: ep_reward,
                     summary_vars[1]: ep_ave_max_q / float(j)
-                })
+                    })
 
                 writer.add_summary(summary_str, i)
                 writer.flush()
@@ -424,7 +426,6 @@ def train(sess, env, args, actor, critic, actor_noise):
 
                 break
 
-#EBBEN VALAMI NEMJO  REWARDOKKAL NEM UGYANAZ MINT A ENVTESTBEN???
 def main(args):
     with tf.Session() as sess:
 
@@ -442,12 +443,17 @@ def main(args):
         #sections = np.array([[273, 125, 273,  64],
         #                     [347, 125, 347,  65],
 
-        sections = np.array([[273, 125, 273,  64],
+        sections = np.array([[273, 125, 273, 64],
+                             [333, 125, 333, 64],
                              [394, 157, 440, 102],
-                             [331, 212, 331, 267]])
+                             [370, 195, 430, 240],
+                             [331, 212, 331, 267],
+                             [220, 300, 280, 300],
+                             [240, 400, 300, 380]])
+                            #[190, 125, 190, 64]])
 
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
-        env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
+        env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=True)
 
         np.random.seed(int(args['random_seed']))
         tf.set_random_seed(int(args['random_seed']))

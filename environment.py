@@ -9,7 +9,7 @@ from skimage.color import rgb2gray
 class PaperRaceEnv:
     """ez az osztály biztosítja a tanuláshoz a környezetet"""
 
-    def __init__(self, trk_pic, trk_col, gg_pic, sections, random_init=False, track_inside_color=None,):
+    def __init__(self, trk_pic, trk_col, gg_pic, sections, random_init, track_inside_color=None,):
 
         # ha nincs megadva a pálya belsejének szín, akkor pirosra állítja
         # ez a rewardokat kiszámoló algoritmus működéséhez szükséges
@@ -26,16 +26,19 @@ class PaperRaceEnv:
         self.gg_pic = mpimg.imread(gg_pic) # beolvassa a GG diagramot
         self.steps = 0  # az eddig megtett lépések száma
 
-        self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
+        # Ha be van kapcsolva az autó véletlen pozícióból való indítása, random szakaszból indulunk
+        self.random_init = random_init
+
         # Az első szakasz a sectionban, lesz a startvonal
         self.sections = sections
 
         # A kezdo pozicio a startvonal fele, es onnan 1-1 pixellel "arrebb" Azert hogy ne legyen a startvonal es a
         # kezdeti sebesseg metszo.
         # ezen a ponton section_nr = 0, az elso szakasz a listaban (sections) a startvonal
-        start_line = sections[self.section_nr]
+        start_line = sections[0]
         #ez valmiert igy volt, egyelore igy hagyom...
         self.start_line = start_line
+
         # A startvonalra meroleges iranyvektor:
         e_start_x = int(np.floor((start_line[0] - start_line[2])))
         e_start_y = int(np.floor((start_line[1] - start_line[3])))
@@ -46,7 +49,6 @@ class PaperRaceEnv:
         self.start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
         # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
-        self.random_init = random_init # True, ha be van kapcsolva az autó véletlen pozícióból való indítása
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
         self.starting_spd = self.e_start_spd * 10
@@ -329,6 +331,27 @@ class PaperRaceEnv:
             self.starting_pos = self.track_indices[randint(0, len(self.track_indices) - 1)]
             self.prev_dist = self.get_ref_time(self.starting_pos)
         """
+        if self.random_init:
+            print("sections_nr: ", len(self.sections))
+            self.section_nr = randint(0, len(self.sections) - 2)
+        else:
+            self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
+        print("SectNr: ", self.section_nr)
+
+        start_line = self.sections[self.section_nr]
+
+        e_start_x = int(np.floor((start_line[0] - start_line[2])))
+        e_start_y = int(np.floor((start_line[1] - start_line[3])))
+        self.e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
+
+        # A startvonal közepe:
+        self.start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
+        self.start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
+        # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
+        self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
+
+        #a kezdo sebesseget a startvonalra merolegesre akarjuk:
+        self.starting_spd = self.e_start_spd * 10
 
 
 
