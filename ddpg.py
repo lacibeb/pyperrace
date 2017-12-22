@@ -321,9 +321,13 @@ def train(sess, env, args, actor, critic, actor_noise):
 
             random_step = False
 
+
             #in_section = in_section + section_nr
             #if rnd.uniform(0, 1) < in_section * 0.1:
             #    random_step = True
+
+            if rnd.uniform(0, 1) < 0.1:
+                random_step = True
 
             #Actionok:
 
@@ -437,7 +441,9 @@ def main(args):
 
         #sections = np.array([[273, 125, 273,  64],
         #                     [347, 125, 347,  65],
-        sections = np.array([[394, 157, 440, 102],
+
+        sections = np.array([[273, 125, 273,  64],
+                             [394, 157, 440, 102],
                              [331, 212, 331, 267]])
 
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
@@ -482,15 +488,15 @@ if __name__ == '__main__':
     # agent parameters
     parser.add_argument('--actor-lr', help='actor network learning rate', default=0.0000001)
     parser.add_argument('--critic-lr', help='critic network learning rate', default=0.00001)
-    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.99)
+    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.985)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
     parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
 
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
-    parser.add_argument('--random-seed', help='random seed for repeatability', default=1231)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=5000)
+    parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=50000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
