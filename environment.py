@@ -116,12 +116,7 @@ class PaperRaceEnv:
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
         #print("SC: ",crosses,"sect: ",section_nr, "t2: ", t2)
 
-        #print("PosOld:", pos_old, "PosNew:", pos_new)
-        # megnezzuk hol jarunk (get_dist.. majd atirni ezt a fugvenyt)
-        ref_time, curr_dist_old, pos_temp_old = self.get_ref_time(pos_old, ref_spd)
-        # megnezzuk, az uj pozicioban hol jarunk:
-        ref_time, curr_dist_new, pos_temp_new = self.get_ref_time(pos_new, ref_spd)
-        #print(curr_dist_old, curr_dist_new)
+
 
         #Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
@@ -134,7 +129,7 @@ class PaperRaceEnv:
 
             # a get dist, nem tudja lekerdeni ha palyan kivuli ponthoz kell, ezert kieseskor a pos_old, azaz ami meg
             # palyan volt, annak a tavolsagat kerdezzuk le.
-            ref_time, curr_dist, pos = self.get_ref_time(pos_old, ref_spd)
+            # ref_time, curr_dist, pos = self.get_ref_time(pos_old, ref_spd)
             """
             # mivel ha az elso lepes eleve olyan hogy kilep a palyarol, akkor a kezdo pozicio tavolsagat nezi, ami
             # ugyancsak a get_dist miatt a legnyagyobb szam, ezert ilyenkor kurvanagy lenne a reward. Szoval ha az elso
@@ -172,39 +167,45 @@ class PaperRaceEnv:
             #TODO 1.1: INNEN folytatni. Nem fasza. random lepkedve kifagy. manualban jatszva faja, de a szakaszok es
             #celbaerkezes meg hianyzik.
             """
+            curr_dist = 1
+
             reward = -100
             end = True
 
-        # ha visszafelé indul, azaz a dist uj, kisebb mint  adist elozo:
-        #elif (self.start_line[1] < pos_new[1] < self.start_line[3] and pos_old[0] >= self.start_line[0] > pos_new[0]) or\
-
-        elif curr_dist_new < curr_dist_old:
-            reward = -190
-            curr_dist = 0.1
-            end = True
-
-        #ha a 0. szakaszt, azaz startvonalat szakit at:
-        elif (crosses and section_nr == 0):
-            reward = -200
-            curr_dist = 0.1
-            end = True
-
-        # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
-        # TODO: kesobb majd megfontolando hogy a koztes szakaszoknal is kapjon reszido szerintit, hatha a tanulast segiti.
-        elif crosses and section_nr == len(self.sections)-1:
-            ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
-            reward = -t2
-            end = True
-
-        #ha atszakitunk egy szakaszt kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
-        elif crosses:
-            ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
-            reward = 15
-
-        # normál esetben a reward:
+        # Ha nem ment ki a palyarol:
         else:
+            # print("PosOld:", pos_old, "PosNew:", pos_new)
+            # megnezzuk hol jarunk (get_dist.. majd atirni ezt a fugvenyt)
+            ref_time, curr_dist_old, pos_temp_old = self.get_ref_time(pos_old, ref_spd)
+            # megnezzuk, az uj pozicioban hol jarunk:
+            ref_time, curr_dist_new, pos_temp_new = self.get_ref_time(pos_new, ref_spd)
+            # print(curr_dist_old, curr_dist_new)
             ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
             reward = -1
+
+            #ha visszafordul:
+            if curr_dist_new < curr_dist_old:
+                reward = -190
+                curr_dist = 0.1
+                end = True
+
+            #ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
+            elif (crosses and section_nr == 0):
+                reward = -200
+                curr_dist = 0.1
+                end = True
+
+            # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
+            # TODO: kesobb majd megfontolando hogy a koztes szakaszoknal is kapjon reszido szerintit, hatha a tanulast segiti.
+            elif crosses and section_nr == len(self.sections)-1:
+                ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
+                reward = -t2
+                end = True
+
+            #ha atszakitunk egy szakaszt (senem elso, senem utolso) kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
+            elif crosses:
+                ref_time, curr_dist, pos = self.get_ref_time(pos_new, ref_spd)
+                reward = 15
 
         # ha barmi miatt az autó megáll, sebesseg zerus, akkor vége
         if np.array_equal(spd_new, [0, 0]):

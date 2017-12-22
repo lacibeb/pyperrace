@@ -321,19 +321,19 @@ def train(sess, env, args, actor, critic, actor_noise):
 
             random_step = False
 
-            in_section = in_section + section_nr
-            if rnd.uniform(0, 1) < in_section * 0.1:
-                random_step = True
+            #in_section = in_section + section_nr
+            #if rnd.uniform(0, 1) < in_section * 0.1:
+            #    random_step = True
 
             #Actionok:
 
             # az elso lepest mindenkepp elore tegyuk meg
-            if j == 0:
-                a = 0
+            #if j == 0:
+            #    a = 0
 
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
-            elif random_episode or random_step:
+            if random_episode or random_step:
                 a = int(np.random.randint(-180, 180, size=1))
                 print("Random action:", a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk

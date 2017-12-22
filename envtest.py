@@ -51,7 +51,7 @@ for ep in range(episodes):
     # ezt könnyen megváltoztatja, tulajdonképen csak arra jó, hogy nem 0
     pos = np.array(env.starting_pos)  # kezdőpozíció beállítása
     reward = 0
-    ep_reward = 0
+    epreward = 0
     ref_dist = 0
     end = False
     color = (1 , 0, 0)
