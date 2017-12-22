@@ -22,12 +22,15 @@ trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 #sections = np.array([[394, 157, 440, 102],
 #                     [331, 212, 331, 267]])
 
+
 sections = np.array([[273, 125, 273, 64],
                      [333, 125, 333, 64],
                      [394, 157, 440, 102],
-                     [394, 167, 450, 132],
+                     [370, 195, 430, 240],
                      [331, 212, 331, 267],
-                     [213, 125, 213, 64]])
+                     [220, 300, 280, 300],
+                     [240, 400, 300, 380]])
+# [190, 125, 190, 64]])
 
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
@@ -68,8 +71,8 @@ for ep in range(episodes):
         if step == 1:
             action = 0
 
-        #action = int(input('Give inut (-180..180 number)'))
-        action = int(np.random.randint(-180, 180, size=1))
+        action = int(input('Give inut (-180..180 number)'))
+       # action = int(np.random.randint(-180, 180, size=1))
         print("action: ",action, "-------------")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
         v_new, pos_new, reward, end, section_nr, curr_dist = env.step(gg_action, v, pos, draw, color)
