@@ -83,18 +83,18 @@ class PaperRaceEnv:
     def step(self, spd_chn, spd_old, pos_old, draw, color):
 
         """
-        ez a függvény számolja a lépést
+                        ez a függvény számolja a lépést
 
-        :param spd_chn:  a sebesség megváltoztatása.(De ez relatívban (lokalisban, a pillanatnyi egyeneshez kepest van!)
-        :param spd_old: az aktuális sebességvektor
-        :param pos_old: aktuális pozíció
-        :return:
-            spd_new: Az új(a lépés utáni) sebességvektor[Vx, Vy]
-            pos_new: Az új(a lépés utáni) pozíció[Px, Py]
-            reward: A kapott jutalom
-            end: logikai érték, igaz ha vége van valamiért az epizódnak
+                        :param spd_chn:  a sebesség megváltoztatása.(De ez relatívban (lokalisban, a pillanatnyi egyeneshez kepest van!)
+                        :param spd_old: az aktuális sebességvektor
+                        :param pos_old: aktuális pozíció
+                        :return:
+                            spd_new: Az új(a lépés utáni) sebességvektor[Vx, Vy]
+                            pos_new: Az új(a lépés utáni) pozíció[Px, Py]
+                            reward: A kapott jutalom
+                            end: logikai érték, igaz ha vége van valamiért az epizódnak
 
-        """
+                        """
         ref_spd = 20
         end = False
         ref_time = 0
@@ -112,7 +112,7 @@ class PaperRaceEnv:
         # az új sebességvektor globalisban:
         spd_new = spd_old + np.ravel(spd_chn_glb)
 
-        #az uj pozicio globalisban:
+        # az uj pozicio globalisban:
         pos_new = pos_old + spd_new
         print("PN:", pos_new, "PO:", pos_old)
 
@@ -125,15 +125,6 @@ class PaperRaceEnv:
         # es az elmozdulas hanyad reszenel
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
-        # Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
-        if draw: # kirajzolja az autót
-            X = np.array([pos_old[0], pos_new[0]])
-            Y = np.array([pos_old[1], pos_new[1]])
-            plt.plot(X, Y, color=color)
-
-          #  X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
-          #  Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
-          #  plt.plot(X, Y, color='yellow')
 
         # ===================
         # Lépések:
@@ -145,32 +136,59 @@ class PaperRaceEnv:
         if not step_on_track:
             # eloszor meg kell hatarozni hogy hol megy le a palyarol:
             print("PATTAN")
-            pos_chk = pos_old
-            ontrack = True
-            while ontrack:
-                pos_chk = pos_chk + (pos_new - pos_old)/np.linalg.norm((pos_new - pos_old))
-                ontrack, inside, outside = self.is_on_track(pos_chk)
-                if ontrack:
-                    pos_new = pos_chk
-            print("PKi: ", pos_new, inside, outside)
+
+            pos_chk_tmp = np.array([int(pos_old[0]), int(pos_old[1])])
+            while True:
+                pos_chk_int = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
+                ontrack, inside, outside = self.is_on_track(pos_chk_int)
+                if not ontrack:
+                    break
+                pos_chk_tmp = pos_chk_tmp + (pos_new - pos_old)/np.linalg.norm((pos_new - pos_old))
+
+            pos_chk = pos_chk_int
+            print("PKi: ", pos_chk, inside, outside)
 
             # ebben a pozicioban kell "visszapattanni". Mas lesz ha bent es mas ha kint mentunk le
-            # if inside:
-            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_chk)
 
-            # visszapattanas elotti vektor
-            v_bef = pos_new - pos_old
+            # a palya "szelessege"
+            tck_wdt = np.linalg.norm((pos_in - pos_out))
 
             # a visszapattinto felulet normalisa
             if inside:
-                n_ref = (pos_in - pos_out) / np.linalg.norm((pos_in - pos_out))
+                en_ref = (pos_in - pos_out) / tck_wdt
             else:
-                n_ref = (pos_out - pos_in) / np.linalg.norm((pos_out - pos_in))
+                en_ref = (pos_out - pos_in) / tck_wdt
 
-            v_aft = v_bef - 2 * (np.dot(v_bef, n_ref)) * n_ref
+            # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
+            # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
+            # 10%-át
+            pos_patt = pos_chk - en_ref * tck_wdt * 0
 
-            spd_new = (v_aft / np.linalg.norm(v_aft)) * 5
-            #spd_new = np.array([randint(2, 2), randint(-2, -2)])
+            # visszapattanas elotti vektor
+            v_bef = pos_chk - pos_old
+
+            # a visszapattano vektor
+            v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
+
+            # az uj iranyba legyen kb 10 pixel hosszu a sebesseg
+            spd_new = (v_aft / np.linalg.norm(v_aft)) * 10
+
+            # kirajzoljuk a falig megtett szakaszt
+            if draw:  # kirajzolja az autót
+                X = np.array([pos_old[0], pos_chk[0]])
+                Y = np.array([pos_old[1], pos_chk[1]])
+                plt.plot(X, Y, color='green')
+
+                X = np.array([pos_in[0], pos_out[0]])
+                Y = np.array([pos_in[1], pos_out[1]])
+                plt.plot(X, Y, color='yellow')
+
+
+            # megcsinlajuk a visszapattanas utani lepest
+            pos_old = pos_patt
+            pos_new = pos_old + spd_new
+
             print("spdnew:", spd_new)
 
             reward = -10
@@ -194,19 +212,16 @@ class PaperRaceEnv:
                 reward = -190
                 curr_dist_in = 0.1
                 end = True
-
             # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
             elif (crosses and section_nr == 0):
                 reward = -200
                 curr_dist_in = 0.1
                 end = True
-
             # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
             elif crosses and section_nr == len(self.sections)-1:
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
                 reward = -t2
                 end = True
-
             #ha atszakitunk egy szakaszt (senem elso, senem utolso) kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
             elif crosses:
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
@@ -216,21 +231,117 @@ class PaperRaceEnv:
         if np.array_equal(spd_new, [0, 0]):
             end = True
 
+        # Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
+        if draw: # kirajzolja az autót
+            X = np.array([pos_old[0], pos_new[0]])
+            Y = np.array([pos_old[1], pos_new[1]])
+            plt.plot(X, Y, color=color)
+
+        #  X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
+        #  Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
+        #  plt.plot(X, Y, color='yellow')
+
         return spd_new, pos_new, reward, end, section_nr, curr_dist_in
+
+
+
+
+    def is_on_track(self, pos):
+        """ a pálya színe és a pozíciónk pixelének színe alapján visszaadja, hogy rajta vagyunk -e a pályán, illetve kint
+           vagy bent csusztunk le rola... Lehetne tuti okosabban mint ahogy most van.
+                        """
+        inside = False
+        outside = False
+        if pos[0] > np.shape(self.trk_pic)[1] or pos[1] > np.shape(self.trk_pic)[0] or pos[0] < 0 or pos[1] < 0 or np.isnan(pos[0]) or np.isnan(pos[1]):
+            ontrack = False
+        else:
+            ontrack = np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.trk_col)
+
+        if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_inside_color):
+            inside = True
+        if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_outside_color):
+            outside = True
+        return ontrack, inside, outside
+
+    def gg_action(self, action):
+        # az action-ökhöz tartozó vektor értékek
+        # első futáskor cash-eljúk
+
+        if self.gg_actions is None:
+            self.gg_actions = [None] * 361 # -180..180-ig, fokonként megnézzük a sugarat.
+            for act in range(-180, 181):
+                if -180 <= act < 180:
+                    # a GGpic 41x41-es B&W bmp. A közepétől nézzük, meddig fehér. (A közepén,
+                    # csak hogy látszódjon, van egy fekete pont!
+                    xsrt, ysrt = 21, 21
+                    r = 1
+                    pix_in_gg = True
+                    x, y = xsrt, ysrt
+                    while pix_in_gg:
+                        # lépjünk az Act irányba +1 pixelnyit, mik x és y ekkor:
+                        #rad = np.pi / 4 * (act + 3)
+                        rad = (act+180) * np.pi / 180
+                        y = ysrt + round(np.sin(rad) * r)
+                        x = xsrt + round(np.cos(rad) * r)
+                        r = r + 1
+
+                        # GG-n belül vagyunk-e még?
+                        pix_in_gg = np.array_equal(self.gg_pic[int(x - 1), int(y - 1)], [255, 255, 255, 255])
+
+                    self.gg_actions[act - 1] = (-(x - xsrt), y - ysrt)
+                else:
+                    self.gg_actions[act - 1] = (0, 0)
+
+        return self.gg_actions[action - 1]
+
+
+    def reset(self):
+        """ha vmiért vége egy menetnek, meghívódik"""
+        # 0-ázza a start poz-tól való távolságot a reward fv-hez
+        self.prev_dist = 0
+
+        """
+        # ha a random indítás be van kapcsolva, akkor új kezdő pozíciót választ
+        if self.random_init:
+            self.starting_pos = self.track_indices[randint(0, len(self.track_indices) - 1)]
+            self.prev_dist = self.get_ref_time(self.starting_pos)
+        """
+        if self.random_init:
+            print("sections_nr: ", len(self.sections))
+            self.section_nr = randint(0, len(self.sections) - 2)
+        else:
+            self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
+        print("SectNr: ", self.section_nr)
+
+        start_line = self.sections[self.section_nr]
+
+        e_start_x = int(np.floor((start_line[0] - start_line[2])))
+        e_start_y = int(np.floor((start_line[1] - start_line[3])))
+        self.e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
+
+        # A startvonal közepe:
+        self.start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
+        self.start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
+        # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
+        self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
+
+        #a kezdo sebesseget a startvonalra merolegesre akarjuk:
+        self.starting_spd = self.e_start_spd * 10
+
 
 
     def sectionpass(self, pos, spd):
         """
-        Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor crosses = 1 - et ad vissza(true)
-        A t2 az az ertek ami mgmondja hogy a Spd vektor hanyadánál metszi az adott szakaszhatart. Ha t2 = 1 akkor a Spd
-        vektor eppenhogy eleri a celvonalat.
+                Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor crosses = 1 - et ad vissza(true)
+                A t2 az az ertek ami mgmondja hogy a Spd vektor hanyadánál metszi az adott szakaszhatart. Ha t2 = 1 akkor a Spd
+                vektor eppenhogy eleri a celvonalat.
 
-        Ezt az egeszet nezi a kornyezet, azaz a palya definialasakor kapott osszes szakaszra (sectionlist) Ha a
-        pillanatnyi pos-bol huzott spd barmely section-t jelzo szakaszt metszi, visszaadja hogy:
-        crosses = True, azaz hogy tortent szakasz metszes.
-        t2 = annyi amennyi, azaz hogy spd hanyadanal metszette
-        section_nr = ahanyadik szakaszt metszettuk epp.
-        """
+                Ezt az egeszet nezi a kornyezet, azaz a palya definialasakor kapott osszes szakaszra (sectionlist) Ha a
+                pillanatnyi pos-bol huzott spd barmely section-t jelzo szakaszt metszi, visszaadja hogy:
+                crosses = True, azaz hogy tortent szakasz metszes.
+                t2 = annyi amennyi, azaz hogy spd hanyadanal metszette
+                section_nr = ahanyadik szakaszt metszettuk epp.
+                """
         """
         keplethez kello idediglenes ertekek. p1, es p2 pontokkal valamint v1 es v2 iranyvektorokkal adott egyenesek metszespontjat
         nezzuk, ugy hogy a celvonal egyik pontjabol a masikba mutat a v1, a v2 pedig a sebesseg, p2pedig a pozicio
@@ -281,89 +392,6 @@ class PaperRaceEnv:
                     section_nr = 0
         #print("CR: ",crosses,"t2: ",t2)
         return crosses, t2, section_nr
-
-    def is_on_track(self, pos):
-        """
-        a pálya színe és a pozíciónk pixelének színe alapján visszaadja, hogy rajta vagyunk -e a pályán, illetve kint
-        vagy bent csusztunk le rola... Lehetne tuti okosabban mint ahogy most van.
-        """
-        inside = False
-        outside = False
-        if pos[0] > np.shape(self.trk_pic)[1] or pos[1] > np.shape(self.trk_pic)[0] or pos[0] < 0 or pos[1] < 0 or np.isnan(pos[0]) or np.isnan(pos[1]):
-            ontrack = False
-        else:
-            ontrack = np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.trk_col)
-
-        if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_inside_color):
-            inside = True
-        if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_outside_color):
-            outside = True
-        return ontrack, inside, outside
-
-
-    def gg_action(self, action):
-        # az action-ökhöz tartozó vektor értékek
-        # első futáskor cash-eljúk
-
-        if self.gg_actions is None:
-            self.gg_actions = [None] * 361 # -180..180-ig, fokonként megnézzük a sugarat.
-            for act in range(-180, 181):
-                if -180 <= act < 180:
-                    # a GGpic 41x41-es B&W bmp. A közepétől nézzük, meddig fehér. (A közepén,
-                    # csak hogy látszódjon, van egy fekete pont!
-                    xsrt, ysrt = 21, 21
-                    r = 1
-                    pix_in_gg = True
-                    x, y = xsrt, ysrt
-                    while pix_in_gg:
-                        # lépjünk az Act irányba +1 pixelnyit, mik x és y ekkor:
-                        #rad = np.pi / 4 * (act + 3)
-                        rad = (act+180) * np.pi / 180
-                        y = ysrt + round(np.sin(rad) * r)
-                        x = xsrt + round(np.cos(rad) * r)
-                        r = r + 1
-
-                        # GG-n belül vagyunk-e még?
-                        pix_in_gg = np.array_equal(self.gg_pic[int(x - 1), int(y - 1)], [255, 255, 255, 255])
-
-                    self.gg_actions[act - 1] = (-(x - xsrt), y - ysrt)
-                else:
-                    self.gg_actions[act - 1] = (0, 0)
-
-        return self.gg_actions[action - 1]
-
-    def reset(self):
-        """ha vmiért vége egy menetnek, meghívódik"""
-        # 0-ázza a start poz-tól való távolságot a reward fv-hez
-        self.prev_dist = 0
-
-        """
-        # ha a random indítás be van kapcsolva, akkor új kezdő pozíciót választ
-        if self.random_init:
-            self.starting_pos = self.track_indices[randint(0, len(self.track_indices) - 1)]
-            self.prev_dist = self.get_ref_time(self.starting_pos)
-        """
-        if self.random_init:
-            print("sections_nr: ", len(self.sections))
-            self.section_nr = randint(0, len(self.sections) - 2)
-        else:
-            self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
-        print("SectNr: ", self.section_nr)
-
-        start_line = self.sections[self.section_nr]
-
-        e_start_x = int(np.floor((start_line[0] - start_line[2])))
-        e_start_y = int(np.floor((start_line[1] - start_line[3])))
-        self.e_start_spd = np.array([e_start_y, -e_start_x]) / np.linalg.norm(np.array([e_start_y, -e_start_x]))
-
-        # A startvonal közepe:
-        self.start_x = int(np.floor((start_line[0] + start_line[2]) / 2))
-        self.start_y = int(np.floor((start_line[1] + start_line[3]) / 2))
-        # A kezdő pozíció, a startvonal közepétől, a startvonalra merőleges irányba egy picit eltolva:
-        self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
-
-        #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 10
 
     def normalize_data(self, data_orig):
         """
