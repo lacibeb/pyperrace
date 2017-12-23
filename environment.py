@@ -148,6 +148,7 @@ class PaperRaceEnv:
             pos_chk = pos_chk_int
             print("PKi: ", pos_chk, inside, outside)
 
+VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST DICTTEL MEG ANNKA AGENERALASAVAL NEM FASZA
             # ebben a pozicioban kell "visszapattanni". Mas lesz ha bent es mas ha kint mentunk le
             curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_chk)
 
@@ -227,6 +228,10 @@ class PaperRaceEnv:
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
                 reward = 15
 
+            X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
+            Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
+            plt.plot(X, Y, color='magenta')
+
         # ha barmi miatt az autó megáll, sebesseg zerus, akkor vége
         if np.array_equal(spd_new, [0, 0]):
             end = True
@@ -236,10 +241,6 @@ class PaperRaceEnv:
             X = np.array([pos_old[0], pos_new[0]])
             Y = np.array([pos_old[1], pos_new[1]])
             plt.plot(X, Y, color=color)
-
-        #  X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
-        #  Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
-        #  plt.plot(X, Y, color='yellow')
 
         return spd_new, pos_new, reward, end, section_nr, curr_dist_in
 
