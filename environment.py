@@ -67,7 +67,8 @@ class PaperRaceEnv:
 
         self.dists_in = self.__get_dists_in(True) # a kezdőponttól való "távolságot" tárolja a reward fv-hez
         self.dists_out = self.__get_dists_out(True) # a kezdőponttól való "távolságot" tárolja
-
+        print("DictIn:", self.dists_in)
+        print("DictOut:", self.dists_out)
 
     def draw_track(self):
         # pálya kirajzolása
@@ -125,75 +126,92 @@ class PaperRaceEnv:
         # es az elmozdulas hanyad reszenel
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
+        # megnezzuk palyan van-e es ha lemegya kkor kint vagy bent:
+        step_on_track, inside, outside = self.is_on_track(pos_new)
 
         # ===================
         # Lépések:
         # ===================
 
+        # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
+        if crosses and section_nr == len(self.sections)-1 and step_on_track:
+            reward = -t2
+            end = True
+            #curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+
+
         # Ha lemegy a palyarol:
-        step_on_track, inside, outside = self.is_on_track(pos_new)
-
         if not step_on_track:
-            # eloszor meg kell hatarozni hogy hol megy le a palyarol:
-            print("PATTAN")
 
-            pos_chk_tmp = np.array([int(pos_old[0]), int(pos_old[1])])
-            while True:
-                pos_chk_int = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
-                ontrack, inside, outside = self.is_on_track(pos_chk_int)
-                if not ontrack:
-                    break
-                pos_chk_tmp = pos_chk_tmp + (pos_new - pos_old)/np.linalg.norm((pos_new - pos_old))
+            # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert es ugy esett le a palyarol:
+            if crosses and section_nr == len(self.sections) - 1:
+                print("CELBAERT")
+                reward = -t2
+                #curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+                end = True
 
-            pos_chk = pos_chk_int
-            print("PKi: ", pos_chk, inside, outside)
-
-VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST DICTTEL MEG ANNKA AGENERALASAVAL NEM FASZA
-            # ebben a pozicioban kell "visszapattanni". Mas lesz ha bent es mas ha kint mentunk le
-            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_chk)
-
-            # a palya "szelessege"
-            tck_wdt = np.linalg.norm((pos_in - pos_out))
-
-            # a visszapattinto felulet normalisa
-            if inside:
-                en_ref = (pos_in - pos_out) / tck_wdt
+            # nem ert celba:
             else:
-                en_ref = (pos_out - pos_in) / tck_wdt
+                # eloszor meg kell hatarozni hogy hol megy le a palyarol:
+                print("PATTAN")
 
-            # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
-            # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
-            # 10%-át
-            pos_patt = pos_chk - en_ref * tck_wdt * 0
+                pos_chk_tmp = np.array([int(pos_old[0]), int(pos_old[1])])
+                while True:
+                    pos_chk_int = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
+                    ontrack, inside, outside = self.is_on_track(pos_chk_int)
+                    if not ontrack and ((tuple(pos_chk_int) in self.dists_out) or (tuple(pos_chk_int) in self.dists_in)):
+                        break
+                    pos_chk_tmp = pos_chk_tmp + (pos_new - pos_old)/np.linalg.norm((pos_new - pos_old))
 
-            # visszapattanas elotti vektor
-            v_bef = pos_chk - pos_old
+                pos_chk = pos_chk_int
+                print("PKi: ", pos_chk, inside, outside)
 
-            # a visszapattano vektor
-            v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
+                #VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST DICTTEL MEG ANNKA AGENERALASAVAL NEM FASZA
+                # ebben a pozicioban kell "visszapattanni". Mas lesz ha bent es mas ha kint mentunk le
+                curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_chk)
 
-            # az uj iranyba legyen kb 10 pixel hosszu a sebesseg
-            spd_new = (v_aft / np.linalg.norm(v_aft)) * 10
+                # a palya "szelessege"
+                tck_wdt = np.linalg.norm((pos_in - pos_out))
 
-            # kirajzoljuk a falig megtett szakaszt
-            if draw:  # kirajzolja az autót
-                X = np.array([pos_old[0], pos_chk[0]])
-                Y = np.array([pos_old[1], pos_chk[1]])
-                plt.plot(X, Y, color='green')
+                # a visszapattinto felulet normalisa
+                if inside:
+                    en_ref = (pos_in - pos_out) / tck_wdt
+                else:
+                    en_ref = (pos_out - pos_in) / tck_wdt
 
-                X = np.array([pos_in[0], pos_out[0]])
-                Y = np.array([pos_in[1], pos_out[1]])
-                plt.plot(X, Y, color='yellow')
+                # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
+                # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
+                # 10%-át
+                pos_patt = pos_chk - en_ref * tck_wdt * 0
+
+                # visszapattanas elotti vektor
+                v_bef = pos_chk - pos_old
+
+                # a visszapattano vektor
+                v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
+
+                # az uj iranyba legyen kb 10 pixel hosszu a sebesseg
+                spd_new = (v_aft / np.linalg.norm(v_aft)) * 10
+
+                # kirajzoljuk a falig megtett szakaszt
+                if draw:  # kirajzolja az autót
+                    X = np.array([pos_old[0], pos_chk[0]])
+                    Y = np.array([pos_old[1], pos_chk[1]])
+                    plt.plot(X, Y, color='green')
+
+                    X = np.array([pos_in[0], pos_out[0]])
+                    Y = np.array([pos_in[1], pos_out[1]])
+                    plt.plot(X, Y, color='yellow')
 
 
-            # megcsinlajuk a visszapattanas utani lepest
-            pos_old = pos_patt
-            pos_new = pos_old + spd_new
+                # megcsinlajuk a visszapattanas utani lepest
+                pos_old = pos_patt
+                pos_new = pos_old + spd_new
 
-            print("spdnew:", spd_new)
+                print("spdnew:", spd_new)
 
-            reward = -10
-            # end = True
+                reward = -10
+                # end = True
 
         # Ha nem ment ki a palyarol:
         else:
@@ -213,18 +231,24 @@ VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST
                 reward = -190
                 curr_dist_in = 0.1
                 end = True
+
             # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
             elif (crosses and section_nr == 0):
+                print("VISSZAKEZD")
                 reward = -200
                 curr_dist_in = 0.1
                 end = True
+
             # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
-            elif crosses and section_nr == len(self.sections)-1:
-                curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+            elif crosses and section_nr == len(self.sections) - 1 and step_on_track:
+                print("CELBAERT")
                 reward = -t2
+                curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
                 end = True
+
             #ha atszakitunk egy szakaszt (senem elso, senem utolso) kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
-            elif crosses:
+            elif crosses and section_nr < len(self.sections)-1:
+                print("SZAKASZ")
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
                 reward = 15
 
@@ -242,7 +266,7 @@ VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST
             Y = np.array([pos_old[1], pos_new[1]])
             plt.plot(X, Y, color=color)
 
-        return spd_new, pos_new, reward, end, section_nr, curr_dist_in
+        return spd_new, pos_new, reward, end, section_nr
 
 
 
@@ -445,7 +469,13 @@ VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST
         offset = [indices[1] - r, indices[0] - r] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
         pos_in = np.array(pos_new + offset) # kiszámoljuk a pályán lévő pozícióját a pontnak
         #print("-------Pos: ",pos)
-        curr_dist_in = self.dists_in[tuple(pos_in)] # a dist_dict-ből lekérjük a start-tól való távolságát
+        # Ha kozel vagyunk a falhoz, 1 sugaru r adodik, es egy pixelnyivel mindig pont mas key-t ker mint ami letezik.
+        # Ezt  elkerulendo, azt mondjuk, hogy ekkor a pos_new-hoz tartozo erteket keresse ki. (Arra a meghivaskor van
+        # figyelve, hogy pos new olyan legyyen ami benne van... (persze ez megint csak veszmegoldas)
+        if tuple(pos_in) in self.dists_in:
+            curr_dist_in = self.dists_in[tuple(pos_in)] # a dist_dict-ből lekérjük a start-tól való távolságát
+        else:
+            curr_dist_in = self.dists_in[tuple(pos_new)]
         #reward = curr_dist - self.prev_dist # kivonjuk az előző lépésben kapott távolságból
         #self.prev_dist = curr_dist # atz új lesz a régi, hogy a követkző lépésben legyen miből kivonni
 
@@ -467,8 +497,13 @@ VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST
         offset = [indices[1] - r, indices[0] - r]  # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
         pos_out = np.array(pos_new + offset)  # kiszámoljuk a pályán lévő pozícióját a pontnak
         # print("-------Pos: ",pos)
-        curr_dist_out = self.dists_out[tuple(pos_out)]  # a dist_dict-ből lekérjük a start-tól való távolságát
-
+        # Ha kozel vagyunk a falhoz, 1 sugaru r adodik, es egy pixelnyivel mindig pont mas key-t ker mint ami letezik.
+        # Ezt  elkerulendo, azt mondjuk, hogy ekkor a pos_new-hoz tartozo erteket keresse ki. (Arra a meghivaskor van
+        # figyelve, hogy pos new olyan legyyen ami benne van... (persze ez megint csak veszmegoldas)
+        if tuple(pos_out) in self.dists_out:
+            curr_dist_out = self.dists_out[tuple(pos_out)] # a dist_dict-ből lekérjük a start-tól való távolságát
+        else:
+            curr_dist_out = self.dists_out[tuple(pos_new)]
         return curr_dist_in, pos_in, curr_dist_out, pos_out
 
     def __get_dists_in(self, rajz=False):
