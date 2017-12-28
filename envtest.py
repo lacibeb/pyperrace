@@ -22,7 +22,7 @@ trk_col = np.array([99, 99, 99]) # pálya színe (szürke)
 #sections = np.array([[394, 157, 440, 102],
 #                     [331, 212, 331, 267]])
 
-
+"""
 sections = np.array([[273, 125, 273, 64],
                      [333, 125, 333, 64],
                      [394, 157, 440, 102],
@@ -31,6 +31,9 @@ sections = np.array([[273, 125, 273, 64],
                      [220, 300, 280, 300],
                      [240, 400, 330, 380]])
 # [190, 125, 190, 64]])
+"""
+sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
+                     [370, 195, 440, 270]])
 
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
@@ -108,6 +111,6 @@ for ep in range(episodes):
         #TODO: valami olvashatóbb formátumban kiiratni. pl. táblázat
         #print('batch: ', s_batch, a_batch, r_batch, t_batch, s2_batch)
 
-    print("Eprew.: ",epreward)
+    print("Eprew.: ", epreward)
 
 
