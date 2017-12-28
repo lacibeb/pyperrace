@@ -277,6 +277,14 @@ def train(sess, env, args, actor, critic, actor_noise):
     # osszes tanulas alatt ennyiszer rajzolunk:
     draws_per_fullepisodes = 1000
 
+
+    # A koncepcio az lesz hogy generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell
+    # lenni es akkor teljesul egy feltetel
+
+    # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
+    # tanulni, csak tolteni fel az exerience memoryt
+    rand_ep_for_exp = int(args['max_episodes']) * 0.03
+
     # ====================
     # Indul egy epizod:
     # ====================
@@ -305,27 +313,20 @@ def train(sess, env, args, actor, critic, actor_noise):
             env.draw_track()
         # ---------------------------------------------------------------------------
 
-
-        """
-        Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
-        amiben csak ilyen lepesek vannak, raadasul ez a valoszinuseg a tanulasra szant epizidszam elejen magas a 
-        vegen meg alacsony
-        """
-        # Ha mas nincs, ne veletlenszeruen lepkedjen
+        # Exploration-joz: Ha mas nincs, ne veletlenszeruen lepkedjen
         rand_episode = False
-        # A koncepcio az lesz hogy generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell
-        # lenni es akkor teljesul egy feltetel
-
-        # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
-        # tanulni, csak tolteni fel az exerience memoryt
-        rand_ep_for_exp = int(args['max_episodes']) * 0.01
+        # random lesz egesz epizod, ha a tanulas elejen vagyunk:
         if i < rand_ep_for_exp:
             rand_episode = True
             print("Random Episode")
-        # !: később intézve hogy ilyenkor ne tanuljon, scak töltse a memoryt
+        # !: később intézve hogy ilyenkor ne tanuljon, ccak töltse a memoryt
 
-        rand_stp_for_exp = (int(args['max_episodes']) - (2 * i)) / int(args['max_episodes'])
+        # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
+        rand_stp_for_exp = (int(args['max_episodes']) - (1.5 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
+
+        # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
+        rand_stp_min = 0.001
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
@@ -333,14 +334,13 @@ def train(sess, env, args, actor, critic, actor_noise):
             s = [v[0], v[1], pos[0], pos[1]] #az eredeti kodban s-be van gyujtve az ami a masikban pos és v
 
             rand_step = False
-
             # Az egy dolog hogy az elejen van egy darabig total random lepkedes, de utana is van hogy neha randomlep
             # Minnnel kesobb jarunk a tanulanal, annal kisebb valoszinuseggel. Eleinte meg naaagy valoszinuseggel.
-            if rnd.uniform(0, 1) < rand_stp_for_exp:
+            # Tovabab ugyanitt kezelve hogy mikor lejar a csokkeno valoszinusegu resz utana is meg neha rand legyen
+            if rnd.uniform(0, 1) < rand_stp_for_exp or rnd.uniform(0, 1) < rand_stp_min:
                 rand_step = True
 
             #Actionok:
-
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
             if rand_episode or rand_step:
@@ -362,6 +362,7 @@ def train(sess, env, args, actor, critic, actor_noise):
             s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
             r = reward
             terminal = end
+            ep_reward += r
 
             #és akkor a megfeleltetett változókkal már lehet csinálni a replay memory-t:
             replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r, terminal, np.reshape(s2, (actor.s_dim,)))
@@ -403,8 +404,6 @@ def train(sess, env, args, actor, critic, actor_noise):
             #s = s2
             v = v_new
             pos = pos_new
-
-            ep_reward += r
 
             if terminal:
                 #Ha egybol (J=0-nal vege)
@@ -477,9 +476,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.000001)
+    parser.add_argument('--actor-lr', help='actor network learning rate',   default=0.000001)
     parser.add_argument('--critic-lr', help='critic network learning rate', default=0.0001)
-    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.99)
+    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.995)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
     parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
@@ -487,7 +486,7 @@ if __name__ == '__main__':
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=10000)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=20000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
