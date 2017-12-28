@@ -271,32 +271,40 @@ def train(sess, env, args, actor, critic, actor_noise):
     # Initialize replay memory
     replay_buffer = ReplayBuffer(int(args['buffer_size']), int(args['random_seed']))
 
-    #TODO: Lassú kirajzolást megcsinálni, ez most csak temp
-    draws = 1 #nem minden epizodot fogunk kirajzolni, mert lassú. Lásd később
+    # nem minden epizodot fogunk kirajzolni, mert lassú. Lásd később
+    draws = 1
 
-    #addig ahány epizódot akarunk:
+    # osszes tanulas alatt ennyiszer rajzolunk:
+    draws_per_fullepisodes = 1000
+
+    # ====================
+    # Indul egy epizod:
+    # ====================
+
     for i in range(int(args['max_episodes'])):
+        # alapállapotba hozzuk a környezetet
+        env.reset()
 
-        env.reset() #ezt nem ertem pontosan mit csinal, de jobb ha itt van :)
-        v = np.array(env.starting_spd)  # kezdeti sebeesseg, ahogy a kornyezet adja
-        pos = np.array(env.starting_pos)  #sebesség mellé a kezdeti poz. is kell. Ez a kezdőpozíció beállítása
+        # kezdeti sebeesseg, ahogy a kornyezet adja
+        v = np.array(env.starting_spd)
 
+        # sebesség mellé a kezdeti poz. is kell. Ez a kezdőpozíció beállítása:
+        pos = np.array(env.starting_pos)
+
+        # kezdeti teljes epzód alatt szerzett jutalom, és legjobb q étrék:
         ep_reward = 0
         ep_ave_max_q = 0
 
-        section_nr = 0
-        in_section = 0
-
-        color = (1, 0, 0) #kornyezet kirajzolasahoz
+        # ------------------kornyezet kirajzolasahoz---------------------------------
+        color = (1, 0, 0)
         draw = False
-        #hanyadik epizod lepeseit jelenitjuk meg (nem mindet, mert a kirajzolas lassu)
         if i == draws:
-            draw = True #kornyezet kirajzolasahoz
-            draws = draws + int(args['max_episodes']) / 10000
-
-        if draw:  # ha rajzolunk
+            draw = True
+            draws = draws + int(args['max_episodes']) / draws_per_fullepisodes
             plt.clf()
             env.draw_track()
+        # ---------------------------------------------------------------------------
+
 
         """
         Exploration: bizonyos valoszinuseggel beiktat egy total veletlen lepest. Egyreszt lehet olyan epizod
@@ -304,74 +312,63 @@ def train(sess, env, args, actor, critic, actor_noise):
         vegen meg alacsony
         """
         # Ha mas nincs, ne veletlenszeruen lepkedjen
-        random_episode = False
+        rand_episode = False
+        # A koncepcio az lesz hogy generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell
+        # lenni es akkor teljesul egy feltetel
 
-        # generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell lenni es akkor teljesul
-        # egy feltetel
-        # rand_chk = max(0, int(args['max_episodes']) - (i * 3)) / int(args['max_episodes'])
-        # teszt jelleggel mindig fixen. (kesobb majd atirjuk hogy csokkenjen a valoszinuseg
-        rand_chk = 0.2
-        # ellenorzeskepp kiirva:
-        # print("randomhoz:", rand_chk)
+        # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
+        # tanulni, csak tolteni fel az exerience memoryt
+        rand_ep_for_exp = int(args['max_episodes']) * 0.01
+        if i < rand_ep_for_exp:
+            rand_episode = True
+            print("Random Episode")
+        # !: később intézve hogy ilyenkor ne tanuljon, scak töltse a memoryt
 
-        # Ha tehat egy random szam kisebb mint egy adott, akkor random lesz az epizod
-        if rnd.uniform(0, 1) < rand_chk:
-            random_episode = True
+        rand_stp_for_exp = (int(args['max_episodes']) - (2 * i)) / int(args['max_episodes'])
+        print("Random Step", rand_stp_for_exp)
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
 
             s = [v[0], v[1], pos[0], pos[1]] #az eredeti kodban s-be van gyujtve az ami a masikban pos és v
 
-            random_step = False
+            rand_step = False
 
-            #in_section = in_section + section_nr
-            #if rnd.uniform(0, 1) < in_section * 0.1:
-            #    random_step = True
-
-            if rnd.uniform(0, 1) < 0.1:
-                random_step = True
+            # Az egy dolog hogy az elejen van egy darabig total random lepkedes, de utana is van hogy neha randomlep
+            # Minnnel kesobb jarunk a tanulanal, annal kisebb valoszinuseggel. Eleinte meg naaagy valoszinuseggel.
+            if rnd.uniform(0, 1) < rand_stp_for_exp:
+                rand_step = True
 
             #Actionok:
 
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
-            if random_episode or random_step:
+            if rand_episode or rand_step:
                 a = int(np.random.randint(-180, 180, size=1))
-                print("Random action:", a)
+                print("\033[94m {}\033[00m" .format("Random action:"), a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
-                a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-3, 3, size=1))
-                print(a)
+                a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-1, 1, size=1))
+                print("Netwrk action:", a)
 
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
             #általában ez a fenti két sor egymsor. csak nálunk most így van megírva a környezet, hogy így kell neki beadni az actiont
 
             #megnézzük mit mond a környezet az adott álapotban az adott action-ra:
             #s2, r, terminal, info = env.step(a)
-            v_new, pos_new, reward, end, section_nr, curr_dist = env.step(gg_action, v, pos, draw, color)
+            v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
 
             #megintcsak a kétfelől összemásolgatott küdok miatt, feleltessünkk meg egymásnak változókat:
             s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
-            """
-            # a "faja" reward szamitashoz definialunk egy atlag sebesseget: [pixel/lepes] (A picxel helet, egy lepes
-            # pedig egy egyseg idot jelent)
-            ref_spd = 15
-
-            #Az adott helyre eljutni az atlag "sebesseggel" elvileg ennyi lepes (ido):
-            ref_time = curr_dist / ref_spd
-
-            # az alap reward elvileg az eltelt idot adja negativban. Tehat r = reward -
-            """
             r = reward
-            #print("rew:", r)
             terminal = end
 
             #és akkor a megfeleltetett változókkal már lehet csinálni a replay memory-t:
             replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r, terminal, np.reshape(s2, (actor.s_dim,)))
 
-            # Keep adding experience to the memory until there are at least minibatch size samples
-            if replay_buffer.size() > int(args['minibatch_size']):
+            # Keep adding experience to the memory until there are at least minibatch size samples, És amig a
+            # tanulas elejen a random lepkedos fazisban vagyunk.
+            if replay_buffer.size() > int(args['minibatch_size']) and not rand_episode:
                 s_batch, a_batch, r_batch, t_batch, s2_batch = replay_buffer.sample_batch(int(args['minibatch_size']))
 
                 # Calculate targets
@@ -398,7 +395,6 @@ def train(sess, env, args, actor, critic, actor_noise):
                 actor.update_target_network()
                 critic.update_target_network()
 
-            #TODO: ez a kirajzolás lassú. Vagy kivenni, vagy magcsinálni máshogy (temp:nem mindig rajzolunk
             if draw:
                 plt.pause(0.001)
                 plt.draw()
@@ -417,7 +413,7 @@ def train(sess, env, args, actor, critic, actor_noise):
                 summary_str = sess.run(summary_ops, feed_dict={
                     summary_vars[0]: ep_reward,
                     summary_vars[1]: ep_ave_max_q / float(j)
-                    })
+                })
 
                 writer.add_summary(summary_str, i)
                 writer.flush()
@@ -443,17 +439,15 @@ def main(args):
         #sections = np.array([[273, 125, 273,  64],
         #                     [347, 125, 347,  65],
 
-        sections = np.array([[273, 125, 273, 64],
-                             [333, 125, 333, 64],
-                             [394, 157, 440, 102],
-                             [370, 195, 430, 240],
-                             [331, 212, 331, 267],
-                             [220, 300, 280, 300],
-                             [240, 400, 300, 380]])
+        sections = np.array([[273, 125, 273, 64], # [333, 125, 333, 64],[394, 157, 440, 102],
+                             [370, 195, 440, 270]])
+                            #[331, 212, 331, 267]])
+                            #[220, 300, 280, 300],
+                            #[240, 400, 300, 380]])
                             #[190, 125, 190, 64]])
 
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
-        env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=True)
+        env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
 
         np.random.seed(int(args['random_seed']))
         tf.set_random_seed(int(args['random_seed']))
@@ -475,26 +469,17 @@ def main(args):
 
         actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(action_dim))
 
-        '''if args['use_gym_monitor']:
-            if not args['render_env']:
-                env = wrappers.Monitor(
-                    env, args['monitor_dir'], video_callable=False, force=True)
-            else:
-                env = wrappers.Monitor(env, args['monitor_dir'], force=True)'''
-
         train(sess, env, args, actor, critic, actor_noise)
 
-        '''if args['use_gym_monitor']:
-            env.monitor.close()'''
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.0000001)
-    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.00001)
-    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.985)
+    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.000001)
+    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.0001)
+    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.99)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
     parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
@@ -502,7 +487,7 @@ if __name__ == '__main__':
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=50000)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=10000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')

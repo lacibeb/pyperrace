@@ -21,7 +21,6 @@ class PaperRaceEnv:
         # a palya kulso szine is jobb lenne nem itt, de most ganyolva ide rakjuk
         self.track_outside_color = np.array([255, 255, 255], dtype='uint8')
 
-
         self.trk_pic = mpimg.imread(trk_pic)  # beolvassa a pályát
         self.trk_col = trk_col  # trk_pic-en a pálya színe
         self.gg_pic = mpimg.imread(gg_pic) # beolvassa a GG diagramot
@@ -54,10 +53,13 @@ class PaperRaceEnv:
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
         self.starting_spd = self.e_start_spd * 10
 
-
-
         self.gg_actions = None # az action-ökhöz tartozó vektor értékeit cash-eli a legelajén és ebben tárolja
+
+        # van egy ref... fv. Ahhoz hog az jol mukodjon, kellenek mindig egy "előző" lépés ref adatai. Ezek:
         self.prev_dist_in = 0
+        self.prev_dist_out = 0
+        self.prev_pos_in = np.array([0, 0])
+        self.prev_pos_out = np.array([0, 0])
 
         self.track_indices = [] # a pálya (szürke) pixeleinek pozícióját tartalmazza
         for x in range(self.trk_pic.shape[1]):
@@ -67,8 +69,8 @@ class PaperRaceEnv:
 
         self.dists_in = self.__get_dists_in(True) # a kezdőponttól való "távolságot" tárolja a reward fv-hez
         self.dists_out = self.__get_dists_out(True) # a kezdőponttól való "távolságot" tárolja
-        print("DictIn:", self.dists_in)
-        print("DictOut:", self.dists_out)
+        # print("DictIn:", self.dists_in)
+        # print("DictOut:", self.dists_out)
 
     def draw_track(self):
         # pálya kirajzolása
@@ -115,7 +117,7 @@ class PaperRaceEnv:
 
         # az uj pozicio globalisban:
         pos_new = pos_old + spd_new
-        print("PN:", pos_new, "PO:", pos_old)
+        # print("PN:", pos_new, "PO:", pos_old)
 
         # Az adott lépésben érvényes referencia jellmezök:
         # # curr_dist_in_old, pos_temp_in_old, curr_dist_out_old, pos_temp_out_old = self.get_ref(pos_old)
@@ -133,27 +135,17 @@ class PaperRaceEnv:
         # Lépések:
         # ===================
 
-        # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
-        if crosses and section_nr == len(self.sections)-1 and step_on_track:
-            reward = -t2
-            end = True
-            #curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
-
-
         # Ha lemegy a palyarol:
         if not step_on_track:
-
             # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert es ugy esett le a palyarol:
             if crosses and section_nr == len(self.sections) - 1:
-                print("CELBAERT")
-                reward = -t2
-                #curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+                print("\033[91m {}\033[00m" .format("CELBAERT KI"))
+                reward = -t2 - 40
                 end = True
-
             # nem ert celba:
             else:
                 # eloszor meg kell hatarozni hogy hol megy le a palyarol:
-                print("PATTAN")
+                # print("PATTAN")
 
                 pos_chk_tmp = np.array([int(pos_old[0]), int(pos_old[1])])
                 while True:
@@ -164,9 +156,8 @@ class PaperRaceEnv:
                     pos_chk_tmp = pos_chk_tmp + (pos_new - pos_old)/np.linalg.norm((pos_new - pos_old))
 
                 pos_chk = pos_chk_int
-                print("PKi: ", pos_chk, inside, outside)
+                # print("PKi: ", pos_chk, inside, outside)
 
-                #VISSZAPATTANASNAL ALLANDOAN ITT SZOPIK KI. VALAMI EZZEL A RETKES KIBASZTOTT DIST DICTTEL MEG ANNKA AGENERALASAVAL NEM FASZA
                 # ebben a pozicioban kell "visszapattanni". Mas lesz ha bent es mas ha kint mentunk le
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_chk)
 
@@ -182,7 +173,7 @@ class PaperRaceEnv:
                 # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
                 # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
                 # 10%-át
-                pos_patt = pos_chk - en_ref * tck_wdt * 0
+                pos_patt = pos_chk - en_ref * tck_wdt * 0 # nem 10% hanem 0
 
                 # visszapattanas elotti vektor
                 v_bef = pos_chk - pos_old
@@ -208,10 +199,27 @@ class PaperRaceEnv:
                 pos_old = pos_patt
                 pos_new = pos_old + spd_new
 
-                print("spdnew:", spd_new)
+                # ha ez alepes valamiert palyan kivulre esik azt is kezelni kell
+                step_on_track, inside, outside = self.is_on_track(pos_new)
+                crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
+                # ha tehat nincs palyan:
+                if not step_on_track:
+                    print("PATTAN LE")
+                    end = True
+                    reward = -250
+                else:
+                    #ha palyan van de pattanas kozben epp celbaert, azt is kezelni kell
+                    if crosses and section_nr == len(self.sections) - 1:
+                        print("PATTAN CELBA")
+                        end = True
+                        reward = -240
+                    else:
+                        print("PATTAN")
+                        reward = -10
 
-                reward = -10
-                # end = True
+
+
+
 
         # Ha nem ment ki a palyarol:
         else:
@@ -241,7 +249,7 @@ class PaperRaceEnv:
 
             # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
             elif crosses and section_nr == len(self.sections) - 1 and step_on_track:
-                print("CELBAERT")
+                print("\033[92m {}\033[00m".format("CELBAERT BE"))
                 reward = -t2
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
                 end = True
@@ -273,19 +281,33 @@ class PaperRaceEnv:
 
     def is_on_track(self, pos):
         """ a pálya színe és a pozíciónk pixelének színe alapján visszaadja, hogy rajta vagyunk -e a pályán, illetve kint
-           vagy bent csusztunk le rola... Lehetne tuti okosabban mint ahogy most van.
-                        """
-        inside = False
-        outside = False
-        if pos[0] > np.shape(self.trk_pic)[1] or pos[1] > np.shape(self.trk_pic)[0] or pos[0] < 0 or pos[1] < 0 or np.isnan(pos[0]) or np.isnan(pos[1]):
+           vagy bent csusztunk le rola... Lehetne tuti okosabban mint ahogy most van."""
+
+        # meg kell nezni egyatalan a palya kepen belul van-e a pos
+        # print(pos)
+        if int(pos[1]) > (self.trk_pic.shape[0] - 1) or int(pos[0]) > (self.trk_pic.shape[1] - 1):
+            inside = True
+            outside = True
             ontrack = False
         else:
-            ontrack = np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.trk_col)
+            inside = False
+            outside = False
+            ontrack = True
 
-        if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_inside_color):
-            inside = True
-        if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_outside_color):
-            outside = True
+            if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_inside_color):
+                inside = True
+            if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_outside_color):
+                outside = True
+            if inside or outside:
+                ontrack = False
+
+            """
+            if pos[0] > np.shape(self.trk_pic)[1] or pos[1] > np.shape(self.trk_pic)[0] or pos[0] < 0 or pos[1] < 0 or np.isnan(pos[0]) or np.isnan(pos[1]):
+                ontrack = False
+            else:
+                ontrack = np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.trk_col)
+            """
+
         return ontrack, inside, outside
 
     def gg_action(self, action):
@@ -332,11 +354,10 @@ class PaperRaceEnv:
             self.prev_dist = self.get_ref_time(self.starting_pos)
         """
         if self.random_init:
-            print("sections_nr: ", len(self.sections))
             self.section_nr = randint(0, len(self.sections) - 2)
         else:
             self.section_nr = 0 # kezdetben a 0. szakabol indul a jatek
-        print("SectNr: ", self.section_nr)
+        # print("SectNr: ", self.section_nr)
 
         start_line = self.sections[self.section_nr]
 
@@ -444,6 +465,11 @@ class PaperRaceEnv:
 
         Output:
         belso iv menten megtett ut,kulso iv menten megtett ut, belso iv referencia pontja, es kulso iv ref pontja"""
+
+        # valamiert rendszeresen elofordul hogy olyan koordinataval akarja meghivni a dict-eket, amik nincsennek
+        # bennuk. Ennek utana kene jarni, de lusta vagyok. Szal inkabb itt valahogy kezeljuk a fuggvenyen belul.
+
+
 
         trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
         pos_new = np.array(pos_new, dtype='int32')
