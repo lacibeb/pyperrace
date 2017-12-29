@@ -214,9 +214,8 @@ class PaperRaceEnv:
                         end = True
                         reward = -240
                     else:
-                        print("\033[95m {}\033[00m" .format("PATTAN")
-                        reward = -30
-
+                        print("\033[95m {}\033[00m" .format("PATTAN"))
+                        reward = -2
 
 
 

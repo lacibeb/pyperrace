@@ -321,12 +321,14 @@ def train(sess, env, args, actor, critic, actor_noise):
             print("Random Episode")
         # !: később intézve hogy ilyenkor ne tanuljon, ccak töltse a memoryt
 
+        # random episode
+
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
         rand_stp_for_exp = (int(args['max_episodes']) - (1.7 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
 
         # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
-        rand_stp_min = 0.001
+        rand_stp_min = 0.01
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
