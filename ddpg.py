@@ -322,7 +322,7 @@ def train(sess, env, args, actor, critic, actor_noise):
         # !: később intézve hogy ilyenkor ne tanuljon, ccak töltse a memoryt
 
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
-        rand_stp_for_exp = (int(args['max_episodes']) - (1.3 * i)) / int(args['max_episodes'])
+        rand_stp_for_exp = (int(args['max_episodes']) - (1.7 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
 
         # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
@@ -345,15 +345,14 @@ def train(sess, env, args, actor, critic, actor_noise):
             # de a lepes random, na akkor randomot lepunk:
             if rand_episode or rand_step:
                 a = int(np.random.randint(-180, 180, size=1))
-                print("\033[94m {}\033[00m" .format("Random action:"), a)
+                print("\033[94m {}\033[00m" .format("        -------Random action:"), a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
                 a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-1, 1, size=1))
-                print("Netwrk action:", a)
+                print("Netwrk action:--------", a)
 
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
             #általában ez a fenti két sor egymsor. csak nálunk most így van megírva a környezet, hogy így kell neki beadni az actiont
-
             #megnézzük mit mond a környezet az adott álapotban az adott action-ra:
             #s2, r, terminal, info = env.step(a)
             v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
@@ -486,7 +485,7 @@ if __name__ == '__main__':
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=30000)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=50000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')

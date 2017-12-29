@@ -214,9 +214,8 @@ class PaperRaceEnv:
                         end = True
                         reward = -240
                     else:
-                        print("PATTAN")
-                        reward = -10
-
+                        print("\033[95m {}\033[00m" .format("PATTAN")
+                        reward = -30
 
 
 
@@ -258,7 +257,7 @@ class PaperRaceEnv:
             elif crosses and section_nr < len(self.sections)-1:
                 print("SZAKASZ")
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
-                reward = 15
+                reward = 10
 
             X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
             Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
