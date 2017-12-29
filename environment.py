@@ -206,16 +206,19 @@ class PaperRaceEnv:
                 if not step_on_track:
                     print("PATTAN LE")
                     end = True
-                    reward = -250
+                    reward = -5
                 else:
                     #ha palyan van de pattanas kozben epp celbaert, azt is kezelni kell
                     if crosses and section_nr == len(self.sections) - 1:
                         print("PATTAN CELBA")
                         end = True
-                        reward = -240
+                        reward = -6
                     else:
                         print("\033[95m {}\033[00m" .format("PATTAN"))
                         reward = -2
+                # Ezt az egeszet augy nem igy kellene csinalni, hanem ug hogy ilyenkor meghivja sajat magat
+                # ez a step fv. nem ilyen esetekeles azon belul esetekkel benazni... Csak nem vok benne biztos hogy
+                # kell az ilyet csinalni, inkabb benzok ezzel
 
 
 
@@ -231,12 +234,33 @@ class PaperRaceEnv:
             curr_dist_in = curr_dist_in_old
             reward = -1
 
-            # ha visszafordul:
+            # ha visszafordulna:
             if curr_dist_in_new < curr_dist_in_old:
-                print("FORDUL")
-                reward = -8
-                curr_dist_in = 0.1
-                end = True
+                print("\033[96m {}\033[00m".format("FORDUL"))
+                # Eleinte ezt is sokat csinalja ami nem jo, mert enm megy vegig a celig. legyen az hogy ilyenkor is
+                # mint a palyaelhagyaskor a "visszapattanas". berakjuk a palya kozepere, "jo" iranyba
+
+                # az uj pozicio a palya kozepe:
+                pos_new = pos_temp_in_old + (pos_temp_out_old - pos_temp_in_old) / 2 # * rnd.uniform(0.1, 0.9)
+
+                # az uj sebesseg meroleges a kozepvonalra. ehhez a ket szel osszakoto iranyvekror:
+                e_szel = (pos_temp_out_old - pos_temp_in_old) / np.linalg.norm([pos_temp_out_old - pos_temp_in_old])
+
+                # a fentire meroleges irany:
+                n_szel = np.array([-e_szel[1], e_szel[0]])
+
+                # az uj sebesseg:
+                spd_new = n_szel * 4
+
+                # es ne legyen vege
+                end = False
+
+                # Es akkor most persze mindent megint meg kellene nezni, hogy mivan ha ezzel a lepessel most kiesne, vagy
+                # szakaszt lepne, vegy celbaerne vagy stb... szoval az egeszet at ken irni, hogy ilyenkor meghivhassa
+                # sajat magat a step fv. vagy valmai ilyesmi... nemtom
+
+
+
 
             # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
             elif (crosses and section_nr == 0):
@@ -529,6 +553,32 @@ class PaperRaceEnv:
         else:
             curr_dist_out = self.dists_out[tuple(pos_new)]
         return curr_dist_in, pos_in, curr_dist_out, pos_out
+
+    """
+    def get_reward(self, pos_old, pos_new, step_nr):
+        ""Reard ado fuggveny. Egy adott lepeshez (pos_old - pos new) ad jutalmat. Eredetileg az volt hogy -1 azaz mint
+        mint eltelt idő. Most megnezzuk mivan ha egy referencia lepessorhoz kepest a nyert vagy veszetett ido lesz.
+        kb. mint a delta_time channel a MOTEC-ben""
+
+        # Fent az env initbe kell egy referencia lepessor. Actionok, egy vektorban...vagy akarhogy.
+        # Az Actionokhoz tudjuk a pos-okat minden lepesben
+        # Es tudjuk a dist_in es dist_outokat is minden lepeshez (a lepes egy timestep elvileg)
+        # A fentiek alapjan pl.:Look-up table szeruen tudunk barmilyen dist-hez lepest (idot) rendelni
+
+        # Megnezzuk hogy a pos_old es a pos_new milyen dist_old es dist_new-hez tartozik (in vagy out, vagy atlag...)
+
+        # Ehez a dist_old es dist new-hoz megnezzuk hogy a referencia lepessor mennyi ido alatt jutott el ezek lesznek
+        # step_old es step_new.
+
+        # A step_old es step_new kulonbsege azt adja hogy azt a tavot, szakaszt, amit a jelenlegi pos_old, pos_new
+        # megad, azt a ref lepessor, mennyi ido tette meg. A jelenlegi az 1 ido, hiszen egy lepes. A ketto kulonbsege
+        # adja majd pillanatnyi rewardot.
+
+
+
+        return reward
+    """
+
 
     def __get_dists_in(self, rajz=False):
         """
