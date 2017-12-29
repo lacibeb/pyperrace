@@ -140,7 +140,7 @@ class PaperRaceEnv:
             # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert es ugy esett le a palyarol:
             if crosses and section_nr == len(self.sections) - 1:
                 print("\033[91m {}\033[00m" .format("CELBAERT KI"))
-                reward = -t2 - 40
+                reward = -t2 - 5
                 end = True
             # nem ert celba:
             else:
@@ -234,14 +234,14 @@ class PaperRaceEnv:
             # ha visszafordul:
             if curr_dist_in_new < curr_dist_in_old:
                 print("FORDUL")
-                reward = -190
+                reward = -8
                 curr_dist_in = 0.1
                 end = True
 
             # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
             elif (crosses and section_nr == 0):
                 print("VISSZAKEZD")
-                reward = -200
+                reward = -7
                 curr_dist_in = 0.1
                 end = True
 
@@ -256,7 +256,7 @@ class PaperRaceEnv:
             elif crosses and section_nr < len(self.sections)-1:
                 print("SZAKASZ")
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
-                reward = 10
+                reward = 1
 
             X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
             Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
