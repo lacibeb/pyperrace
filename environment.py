@@ -85,8 +85,6 @@ class PaperRaceEnv:
 
     def step(self, spd_chn, spd_old, pos_old, draw, color):
 
-        end = False
-
         # az aktuális sebesség irányvektora:
         e1_spd_old = spd_old / np.linalg.norm(spd_old)
         e2_spd_old = np.array([-1 * e1_spd_old[1], e1_spd_old[0]])
@@ -102,19 +100,37 @@ class PaperRaceEnv:
 
         # az uj pozicio globalisban:
         pos_new = pos_old + spd_new
-        # print("PN:", pos_new, "PO:", pos_old)
 
-        # Az adott lépésben érvényes referencia jellmezök:
-        # # curr_dist_in_old, pos_temp_in_old, curr_dist_out_old, pos_temp_out_old = self.get_ref(pos_old)
-        # # megnezzuk, az uj pozicioban hol jarunk:
-        # curr_dist_in_new, pos_temp_in_new, curr_dist_out_new, pos_temp_out_new = self.get_ref(pos_new)
+        return pos_new
 
-        # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitottunk-e at szakaszt, es ha igen melyiket,
+
+    def step_check(self, pos_old, pos_new, draw, color):
+        # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitanank-e at szakaszt, es ha igen melyiket,
         # es az elmozdulas hanyad reszenel
+        # elotte csinalunk eg sebesseget, mert a section pass azzal dolgozik. (kesobb malyd azt is atirni, csak pos-okra
+        spd_new = pos_new - pos_old
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
-        # megnezzuk palyan van-e es ha lemegya kkor kint vagy bent:
+        # megnezzuk a kapott pos a palyan van-e es ha lemegya akkor kint vagy bent:
         step_on_track, inside, outside = self.is_on_track(pos_new)
+
+        # megnezzuk hol jarunk a palyan, hogy tudjuk elorefele haladunk-e
+        curr_dist_in_old, pos_temp_in_old, curr_dist_out_old, pos_temp_out_old = self.get_ref(pos_old)
+        # megnezzuk, az uj pozicioban hol jarunk:
+        curr_dist_in_new, pos_temp_in_new, curr_dist_out_new, pos_temp_out_new = self.get_ref(pos_new)
+        # elore haladunk ha a belso iv menten vett tavolsag novekszik
+        go_forward = curr_dist_in_old < curr_dist_in_new
+
+        # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
+        if crosses and section_nr == len(self.sections) - 1 and step_on_track:
+            print("\033[92m {}\033[00m".format("CELBAERT BE"))
+            reward = -t2
+            end = True
+            return pos_new, reward, end, section_nr
+
+
+
+
 
         # ===================
         # Lépések:
@@ -282,7 +298,14 @@ class PaperRaceEnv:
             Y = np.array([pos_old[1], pos_new[1]])
             plt.plot(X, Y, color=color)
 
-        return spd_new, pos_new, reward, end, section_nr
+        return spd_new, pos_step_new, reward, end, section_nr
+
+
+    def step_check(self, pos_step_old, pos_step_new):
+
+
+
+        return pos_new, reward, end, section_nr
 
 
 
