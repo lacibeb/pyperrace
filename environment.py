@@ -233,7 +233,7 @@ class PaperRaceEnv:
                 n_szel = np.array([-e_szel[1], e_szel[0]])
 
                 # az uj sebesseg:
-                spd_new = n_szel * 10
+                spd_new = n_szel * 20
 
                 # a jutalom (bunti)
                 reward = -12

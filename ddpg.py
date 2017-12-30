@@ -280,7 +280,7 @@ def train(sess, env, args, actor, critic, actor_noise):
 
     # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
     # tanulni, csak tolteni fel az exerience memoryt
-    rand_ep_for_exp = int(args['max_episodes']) * 0.01
+    rand_ep_for_exp = int(args['max_episodes']) * 0.005
 
     # ====================
     # Indul egy epizod:
@@ -321,11 +321,11 @@ def train(sess, env, args, actor, critic, actor_noise):
         # random episode
 
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
-        rand_stp_for_exp = (int(args['max_episodes']) - (4 * i)) / int(args['max_episodes'])
+        rand_stp_for_exp = (int(args['max_episodes']) - (27 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
 
         # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
-        rand_stp_min = 0.05
+        rand_stp_min = 0.0005
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
@@ -479,7 +479,7 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', help='discount factor for critic updates', default=0.995)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
     parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
-    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
+    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=64)
 
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
