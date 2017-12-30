@@ -51,7 +51,7 @@ class PaperRaceEnv:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 10
+        self.starting_spd = self.e_start_spd * 20
 
         self.gg_actions = None # az action-ökhöz tartozó vektor értékeit cash-eli a legelajén és ebben tárolja
 
@@ -85,22 +85,7 @@ class PaperRaceEnv:
 
     def step(self, spd_chn, spd_old, pos_old, draw, color):
 
-        """
-                        ez a függvény számolja a lépést
-
-                        :param spd_chn:  a sebesség megváltoztatása.(De ez relatívban (lokalisban, a pillanatnyi egyeneshez kepest van!)
-                        :param spd_old: az aktuális sebességvektor
-                        :param pos_old: aktuális pozíció
-                        :return:
-                            spd_new: Az új(a lépés utáni) sebességvektor[Vx, Vy]
-                            pos_new: Az új(a lépés utáni) pozíció[Px, Py]
-                            reward: A kapott jutalom
-                            end: logikai érték, igaz ha vége van valamiért az epizódnak
-
-                        """
-        ref_spd = 20
         end = False
-        ref_time = 0
 
         # az aktuális sebesség irányvektora:
         e1_spd_old = spd_old / np.linalg.norm(spd_old)
@@ -145,8 +130,6 @@ class PaperRaceEnv:
             # nem ert celba:
             else:
                 # eloszor meg kell hatarozni hogy hol megy le a palyarol:
-                # print("PATTAN")
-
                 pos_chk_tmp = np.array([int(pos_old[0]), int(pos_old[1])])
                 while True:
                     pos_chk_int = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
@@ -182,7 +165,7 @@ class PaperRaceEnv:
                 v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
 
                 # az uj iranyba legyen kb 10 pixel hosszu a sebesseg
-                spd_new = (v_aft / np.linalg.norm(v_aft)) * 10
+                spd_new = (v_aft / np.linalg.norm(v_aft)) * 20
 
                 # kirajzoljuk a falig megtett szakaszt
                 if draw:  # kirajzolja az autót
@@ -206,16 +189,16 @@ class PaperRaceEnv:
                 if not step_on_track:
                     print("PATTAN LE")
                     end = True
-                    reward = -5
+                    reward = -300
                 else:
                     #ha palyan van de pattanas kozben epp celbaert, azt is kezelni kell
                     if crosses and section_nr == len(self.sections) - 1:
                         print("PATTAN CELBA")
                         end = True
-                        reward = -6
+                        reward = -11
                     else:
                         print("\033[95m {}\033[00m" .format("PATTAN"))
-                        reward = -2
+                        reward = -7
                 # Ezt az egeszet augy nem igy kellene csinalni, hanem ug hogy ilyenkor meghivja sajat magat
                 # ez a step fv. nem ilyen esetekeles azon belul esetekkel benazni... Csak nem vok benne biztos hogy
                 # kell az ilyet csinalni, inkabb benzok ezzel
@@ -250,7 +233,10 @@ class PaperRaceEnv:
                 n_szel = np.array([-e_szel[1], e_szel[0]])
 
                 # az uj sebesseg:
-                spd_new = n_szel * 4
+                spd_new = n_szel * 10
+
+                # a jutalom (bunti)
+                reward = -12
 
                 # es ne legyen vege
                 end = False
@@ -265,7 +251,7 @@ class PaperRaceEnv:
             # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
             elif (crosses and section_nr == 0):
                 print("VISSZAKEZD")
-                reward = -7
+                reward = -300
                 curr_dist_in = 0.1
                 end = True
 
