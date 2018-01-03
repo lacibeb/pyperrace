@@ -73,11 +73,16 @@ for ep in range(episodes):
         if step == 1:
             action = 0
         else:
-            #action = int(input('Give inut (-180..180 number)'))
-            action = int(np.random.randint(-180, 180, size=1))
+            action = int(input('Give inut (-180..180 number)'))
+            #action = int(np.random.randint(-180, 180, size=1))
         print("action: ", action, "-------------")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
-        v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
+        print("be",gg_action,v,pos)
+        pos_new_to_chk = env.step(gg_action, v, pos)
+        print("ki",pos_new_to_chk)
+        pos_old, pos_new, reward, end, section_nr = env.step_check(pos, pos_new_to_chk, 'blue')
+        print("aftstp posold:"pos_old, "posnew:", pos_new)
+        v_new = pos_new - pos
         s = [v[0], v[1], pos[0], pos[1]]
         s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
         a = action

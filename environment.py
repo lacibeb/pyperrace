@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
+import random as rnd
 from numpy import linalg as LA
 from random import randint
 from skimage.morphology import disk
 from skimage.color import rgb2gray
+
 
 class PaperRaceEnv:
     """ez az osztály biztosítja a tanuláshoz a környezetet"""
@@ -72,6 +74,10 @@ class PaperRaceEnv:
         # print("DictIn:", self.dists_in)
         # print("DictOut:", self.dists_out)
 
+        # amikor leeg a palyarol es visszapattanast akarunk csinalni, akkor ez lesz True
+        self.pattan = False
+        self.fordul = False
+
     def draw_track(self):
         # pálya kirajzolása
         plt.imshow(self.trk_pic)
@@ -83,7 +89,15 @@ class PaperRaceEnv:
             Y = np.array([self.sections[i][1], self.sections[i][3]])
             plt.plot(X, Y, color='blue')
 
-    def step(self, spd_chn, spd_old, pos_old, draw, color):
+    def draw_step(self, pos_old, pos_new, color):
+
+        X = np.array([pos_old[0], pos_new[0]])
+        Y = np.array([pos_old[1], pos_new[1]])
+        plt.plot(X, Y, color)
+
+
+
+    def step(self, spd_chn, spd_old, pos_old):
 
         # az aktuális sebesség irányvektora:
         e1_spd_old = spd_old / np.linalg.norm(spd_old)
@@ -103,210 +117,169 @@ class PaperRaceEnv:
 
         return pos_new
 
+    def step_check(self, pos_old, pos_new, color):
+        # ha minden OK, semmi pittyputty nem lesz:
+        reward = -1
+        end = False
 
-    def step_check(self, pos_old, pos_new, draw, color):
+        step_on_track = False
+
         # meghivjuk a sectionpass fuggvenyt, hogy megkapjuk szakitanank-e at szakaszt, es ha igen melyiket,
         # es az elmozdulas hanyad reszenel
-        # elotte csinalunk eg sebesseget, mert a section pass azzal dolgozik. (kesobb malyd azt is atirni, csak pos-okra
+        # elotte csinalunk eg sebesseget, mert a section pass azzal dolgozik. (kesobb majd azt is atirni, csak pos-okra
         spd_new = pos_new - pos_old
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
         # megnezzuk a kapott pos a palyan van-e es ha lemegya akkor kint vagy bent:
         step_on_track, inside, outside = self.is_on_track(pos_new)
-
+#NEMJO MEG A FORDULAS ES A PATTANAS SEM... eLSOZOR A PATTANST MEGCSINALNI. ATGONDOLNI AZT IS HOGY MI IS LESZ AZ EXP MEMORYBAN ILYNEKOR AZ ALLAPOTATMENET
         # megnezzuk hol jarunk a palyan, hogy tudjuk elorefele haladunk-e
-        curr_dist_in_old, pos_temp_in_old, curr_dist_out_old, pos_temp_out_old = self.get_ref(pos_old)
+        curr_dist_in_old, pos_in_old, curr_dist_out_old, pos_out_old = self.get_ref(pos_old)
         # megnezzuk, az uj pozicioban hol jarunk:
-        curr_dist_in_new, pos_temp_in_new, curr_dist_out_new, pos_temp_out_new = self.get_ref(pos_new)
+        print("chkbe", pos_new)
+AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
+        curr_dist_in_new, pos_in_new, curr_dist_out_new, pos_out_new = self.get_ref(pos_new)
         # elore haladunk ha a belso iv menten vett tavolsag novekszik
         go_forward = curr_dist_in_old < curr_dist_in_new
 
         # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
         if crosses and section_nr == len(self.sections) - 1 and step_on_track:
             print("\033[92m {}\033[00m".format("CELBAERT BE"))
+            self.draw_step(pos_old, pos_new, color)
             reward = -t2
             end = True
-            return pos_new, reward, end, section_nr
+            return pos_old, pos_new, reward, end, section_nr
 
-
-
-
-
-        # ===================
-        # Lépések:
-        # ===================
-
-        # Ha lemegy a palyarol:
-        if not step_on_track:
-            # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert es ugy esett le a palyarol:
-            if crosses and section_nr == len(self.sections) - 1:
-                print("\033[91m {}\033[00m" .format("CELBAERT KI"))
-                reward = -t2 - 5
-                end = True
-            # nem ert celba:
-            else:
-                # eloszor meg kell hatarozni hogy hol megy le a palyarol:
-                pos_chk_tmp = np.array([int(pos_old[0]), int(pos_old[1])])
-                while True:
-                    pos_chk_int = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
-                    ontrack, inside, outside = self.is_on_track(pos_chk_int)
-                    if not ontrack and ((tuple(pos_chk_int) in self.dists_out) or (tuple(pos_chk_int) in self.dists_in)):
-                        break
-                    pos_chk_tmp = pos_chk_tmp + (pos_new - pos_old)/np.linalg.norm((pos_new - pos_old))
-
-                pos_chk = pos_chk_int
-                # print("PKi: ", pos_chk, inside, outside)
-
-                # ebben a pozicioban kell "visszapattanni". Mas lesz ha bent es mas ha kint mentunk le
-                curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_chk)
-
-                # a palya "szelessege"
-                tck_wdt = np.linalg.norm((pos_in - pos_out))
-
-                # a visszapattinto felulet normalisa
-                if inside:
-                    en_ref = (pos_in - pos_out) / tck_wdt
-                else:
-                    en_ref = (pos_out - pos_in) / tck_wdt
-
-                # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
-                # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
-                # 10%-át
-                pos_patt = pos_chk - en_ref * tck_wdt * 0 # nem 10% hanem 0
-
-                # visszapattanas elotti vektor
-                v_bef = pos_chk - pos_old
-
-                # a visszapattano vektor
-                v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
-
-                # az uj iranyba legyen kb 10 pixel hosszu a sebesseg
-                spd_new = (v_aft / np.linalg.norm(v_aft)) * 20
-
-                # kirajzoljuk a falig megtett szakaszt
-                if draw:  # kirajzolja az autót
-                    X = np.array([pos_old[0], pos_chk[0]])
-                    Y = np.array([pos_old[1], pos_chk[1]])
-                    plt.plot(X, Y, color='green')
-
-                    X = np.array([pos_in[0], pos_out[0]])
-                    Y = np.array([pos_in[1], pos_out[1]])
-                    plt.plot(X, Y, color='yellow')
-
-
-                # megcsinlajuk a visszapattanas utani lepest
-                pos_old = pos_patt
-                pos_new = pos_old + spd_new
-
-                # ha ez alepes valamiert palyan kivulre esik azt is kezelni kell
-                step_on_track, inside, outside = self.is_on_track(pos_new)
-                crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
-                # ha tehat nincs palyan:
-                if not step_on_track:
-                    print("PATTAN LE")
-                    end = True
-                    reward = -300
-                else:
-                    #ha palyan van de pattanas kozben epp celbaert, azt is kezelni kell
-                    if crosses and section_nr == len(self.sections) - 1:
-                        print("PATTAN CELBA")
-                        end = True
-                        reward = -11
-                    else:
-                        print("\033[95m {}\033[00m" .format("PATTAN"))
-                        reward = -7
-                # Ezt az egeszet augy nem igy kellene csinalni, hanem ug hogy ilyenkor meghivja sajat magat
-                # ez a step fv. nem ilyen esetekeles azon belul esetekkel benazni... Csak nem vok benne biztos hogy
-                # kell az ilyet csinalni, inkabb benzok ezzel
-
-
-
-        # Ha nem ment ki a palyarol:
-        else:
-
-            # megnezzuk hol jarunk (get_dist.. majd atirni ezt a fugvenyt)
-            # print("PosOld:", pos_old, "PosNew:", pos_new)
-            curr_dist_in_old, pos_temp_in_old, curr_dist_out_old, pos_temp_out_old = self.get_ref(pos_old)
-            # megnezzuk, az uj pozicioban hol jarunk:
-            curr_dist_in_new, pos_temp_in_new, curr_dist_out_new, pos_temp_out_new = self.get_ref(pos_new)
-            # print(curr_dist_in_old, curr_dist_in_new)
-            curr_dist_in = curr_dist_in_old
-            reward = -1
-
-            # ha visszafordulna:
-            if curr_dist_in_new < curr_dist_in_old:
-                print("\033[96m {}\033[00m".format("FORDUL"))
-                # Eleinte ezt is sokat csinalja ami nem jo, mert enm megy vegig a celig. legyen az hogy ilyenkor is
-                # mint a palyaelhagyaskor a "visszapattanas". berakjuk a palya kozepere, "jo" iranyba
-
-                # az uj pozicio a palya kozepe:
-                pos_new = pos_temp_in_old + (pos_temp_out_old - pos_temp_in_old) / 2 # * rnd.uniform(0.1, 0.9)
-
-                # az uj sebesseg meroleges a kozepvonalra. ehhez a ket szel osszakoto iranyvekror:
-                e_szel = (pos_temp_out_old - pos_temp_in_old) / np.linalg.norm([pos_temp_out_old - pos_temp_in_old])
-
-                # a fentire meroleges irany:
-                n_szel = np.array([-e_szel[1], e_szel[0]])
-
-                # az uj sebesseg:
-                spd_new = n_szel * 10
-
-                # a jutalom (bunti)
-                reward = -12
-
-                # es ne legyen vege
-                end = False
-
-                # Es akkor most persze mindent megint meg kellene nezni, hogy mivan ha ezzel a lepessel most kiesne, vagy
-                # szakaszt lepne, vegy celbaerne vagy stb... szoval az egeszet at ken irni, hogy ilyenkor meghivhassa
-                # sajat magat a step fv. vagy valmai ilyesmi... nemtom
-
-
-
-
-            # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
-            elif (crosses and section_nr == 0):
-                print("VISSZAKEZD")
-                reward = -300
-                curr_dist_in = 0.1
-                end = True
-
-            # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
-            elif crosses and section_nr == len(self.sections) - 1 and step_on_track:
-                print("\033[92m {}\033[00m".format("CELBAERT BE"))
-                reward = -t2
-                curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
-                end = True
-
-            #ha atszakitunk egy szakaszt (senem elso, senem utolso) kapjon kis jutalmat. hatha segit tanulaskor a hulyejenek
-            elif crosses and section_nr < len(self.sections)-1:
-                print("SZAKASZ")
-                curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
-                reward = 1
-
-            X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
-            Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
-            plt.plot(X, Y, color='magenta')
-
-        # ha barmi miatt az autó megáll, sebesseg zerus, akkor vége
-        if np.array_equal(spd_new, [0, 0]):
+        # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul, vagy a
+        # celvonalat kihagyva valahogy ujra ideder):
+        if (crosses and section_nr == 0):
+            print("\033[91m {}\033[00m".format("VISSZASTART"))
+            self.draw_step(pos_old, pos_new, 'blue')
+            reward = -300
             end = True
-
-        # Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
-        if draw: # kirajzolja az autót
-            X = np.array([pos_old[0], pos_new[0]])
-            Y = np.array([pos_old[1], pos_new[1]])
-            plt.plot(X, Y, color=color)
-
-        return spd_new, pos_step_new, reward, end, section_nr
+            return pos_old, pos_new, reward, end, section_nr
 
 
-    def step_check(self, pos_step_old, pos_step_new):
+        # ha atszakitunk egy szakaszt (senem elso, senem utolso) kapjon kis jutalmat. hatha segit tanulaskor a hulyejen
+        if crosses and section_nr < len(self.sections) - 1:
+            print("SZAKASZ")
+            reward = 1
+
+        # ha lemenne a palyarol:
+        if not step_on_track:
+            print("\033[95m {}\033[00m".format("PATTAN"))
+            # eloszor meg kell hatarozni hogy hol megy le a palyarol:
+            pos_chk_tmp_next = pos_old #np.array([int(pos_old[0]), int(pos_old[1])])
+            ontrack = True
+            while ontrack:
+                pos_chk_tmp = pos_chk_tmp_next # pos_chk_int
+                pos_chk_tmp_next = pos_chk_tmp + (pos_new - pos_old) / np.linalg.norm((pos_new - pos_old)) * 2
+                pos_chk_int = np.array([int(pos_chk_tmp_next[0]), int(pos_chk_tmp_next[1])])
+                ontrack, inside, outside = self.is_on_track(pos_chk_int)
+
+            pos_chk = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
+
+            # beallitjuk hogy naakkor ez egy pattanós sztituacio
+            self.pattan = True
+
+            # lecsekkoljuk hogy ez a lepes szakaszt lep at, celbaer, vagy megfordul vagy akarmi. (Rekurzio)
+            pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_chk, 'green')
 
 
 
-        return pos_new, reward, end, section_nr
 
+        # ha pattan van, (!:ilyenkor pos_new az elozo pos_chk, szoval pont a palya elhagyasa elotti pixel)
+        if self.pattan:
+
+            # ha ez lefut, ide ne lepjen be ide ujra
+            self.pattan = False
+
+            # kirajzoljuk a lepest
+            self.draw_step(pos_old, pos_new, color)
+            # kirajzoljuk a pattanas normalisat is
+            self.draw_step(pos_in_new, pos_out_new, 'yellow')
+
+            # a palya "szelessege"
+            tck_wdt = np.linalg.norm((pos_in_new - pos_out_new))
+
+            # a visszapattinto felulet normalisa
+            if inside:
+                en_ref = (pos_in_new - pos_out_new) / tck_wdt
+            else:
+                en_ref = (pos_out_new - pos_in_new) / tck_wdt
+
+            # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
+            # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
+            # 10%-át
+            pos_patt = pos_new - en_ref * tck_wdt * 0  # nem 10% hanem 0, pont a szele
+
+            # visszapattanas elotti vektor
+            v_bef = pos_new - pos_old
+
+            # a visszapattano vektor
+            v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
+
+            # az uj iranyba legyen kb 20 pixel hosszu a sebesseg
+            spd_new = (v_aft / np.linalg.norm(v_aft)) * 20
+
+            # megcsinlajuk a visszapattanas utani lepest
+            pos_old = np.array([int(pos_patt[0]), int(pos_patt[1])])
+            pos_new = pos_old + spd_new
+            pos_new = np.array([int(pos_new[0]), int(pos_new[1])])
+
+            # lecsekkoljuk hogy ez a lepes szakaszt lep at, celbaer, vagy megfordul vagy akarmi. (Rekurzio)
+            pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_new, 'green')
+
+            # kiosztjuk a buntetest
+            reward = -11
+
+            return pos_old, pos_new, reward, end, section_nr
+        """
+        # ha nem elorefele megy
+        if not go_forward and not self.fordul:
+            print("\033[96m {}\033[00m".format("FORDUL"))
+
+            # az uj pozicio a palya kozepe (vagy random a szelesseg menten):
+            pos_new = pos_in_old + (pos_out_old - pos_in_old) / 2  # * rnd.uniform(0.1, 0.9)
+
+            # megmondjuk hogy most akkor ez egy fordul szitu:
+            self.fordul = True
+
+            # kirajzoljuk az uj helyre mutato szakaszt.
+            self.draw_step(pos_old, pos_new, 'green')
+
+            # lecsekkoljuk hogy ez a lepes szakaszt lep at, celbaer, vagy megfordul vagy akarmi. (Rekurzio)
+            self.step_check(pos_old, pos_new, 'green')
+
+        # ha fordulas van:
+        if self.fordul:
+
+            # ha ide belep, ujra ne lepjen be
+            self.fordul = False
+
+            # az uj sebesseg meroleges a kozepvonalra. ehhez a ket szel osszakoto iranyvekror:
+            e_szel = (pos_out_old - pos_in_old) / np.linalg.norm([pos_out_old - pos_in_old])
+
+            # a fentire meroleges irany:
+            n_szel = np.array([-e_szel[1], e_szel[0]])
+
+            # az uj sebesseg:
+            spd_new = n_szel * 10
+
+            # az uj poziciok:
+            pos_old = pos_new
+            pos_new = pos_new + spd_new
+
+            # a jutalom (bunti)
+            reward = -12
+
+            # le kell csekkolni hogy akkor most szakaszt lep at, celbaer, vagy megfordul vagy akarmi. (Rekurzio)
+            self.step_check(pos_old, pos_new, 'green')
+        """
+        # ha minden OK, fentiek kozul semmi nem igaz, akkor siman kirajzoljuk a lepest
+        self.draw_step(pos_old, pos_new, color)
+
+        return pos_old, pos_new, reward, end, section_nr
 
 
 
@@ -409,16 +382,16 @@ class PaperRaceEnv:
 
     def sectionpass(self, pos, spd):
         """
-                Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor crosses = 1 - et ad vissza(true)
-                A t2 az az ertek ami mgmondja hogy a Spd vektor hanyadánál metszi az adott szakaszhatart. Ha t2 = 1 akkor a Spd
-                vektor eppenhogy eleri a celvonalat.
+        Ha a Pos - ból húzott Spd vektor metsz egy szakaszt(Szakasz(!),nem egynes) akkor crosses = 1 - et ad vissza(true)
+        A t2 az az ertek ami mgmondja hogy a Spd vektor hanyadánál metszi az adott szakaszhatart. Ha t2 = 1 akkor a Spd
+        vektor eppenhogy eleri a celvonalat.
 
-                Ezt az egeszet nezi a kornyezet, azaz a palya definialasakor kapott osszes szakaszra (sectionlist) Ha a
-                pillanatnyi pos-bol huzott spd barmely section-t jelzo szakaszt metszi, visszaadja hogy:
-                crosses = True, azaz hogy tortent szakasz metszes.
-                t2 = annyi amennyi, azaz hogy spd hanyadanal metszette
-                section_nr = ahanyadik szakaszt metszettuk epp.
-                """
+        Ezt az egeszet nezi a kornyezet, azaz a palya definialasakor kapott osszes szakaszra (sectionlist) Ha a
+        pillanatnyi pos-bol huzott spd barmely section-t jelzo szakaszt metszi, visszaadja hogy:
+        crosses = True, azaz hogy tortent szakasz metszes.
+        t2 = annyi amennyi, azaz hogy spd hanyadanal metszette
+        section_nr = ahanyadik szakaszt metszettuk epp.
+        """
         """
         keplethez kello idediglenes ertekek. p1, es p2 pontokkal valamint v1 es v2 iranyvektorokkal adott egyenesek metszespontjat
         nezzuk, ugy hogy a celvonal egyik pontjabol a masikba mutat a v1, a v2 pedig a sebesseg, p2pedig a pozicio
@@ -506,61 +479,51 @@ class PaperRaceEnv:
         pos_new = np.array(pos_new, dtype='int32')
 
         #Belso ivre---------------------------------
-        tmp = [0]
+        tmp_in = [0]
         col_in = rgb2gray(np.reshape(self.track_inside_color, (1, 1, 3)))
-        r = 0
+        r_in = 0
 
         # az algoritmus úgy működik, hogy az aktuális pozícióban egyre negyobb sugárral
         # létrehoz egy diszket, amivel megnézi, hogy van -e r sugarú környezetében piros pixel
         # ha igen, akkor azt a pixelt kikeresi a dist_dict-ből, majd megnezi ehhez mennyi a ref sebesseggel mennyi ido
         # jar
 
-        while not np.any(tmp):
-            r = r + 1 # növeljük a disc sugarát
-            tmp = trk[pos_new[1] - r:pos_new[1] + r + 1, pos_new[0] - r:pos_new[0] + r + 1] # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
-            mask = disk(r)
-            tmp = np.multiply(mask, tmp) # maszkoljuk a disc-kel
-            tmp[tmp != col_in] = 0 # megnézzük, hogy van -e benne belso szin
-
-        indices = [p[0] for p in np.nonzero(tmp)] # ha volt benne piros, akkor lekérjük a pozícióját
-        offset = [indices[1] - r, indices[0] - r] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
-        pos_in = np.array(pos_new + offset) # kiszámoljuk a pályán lévő pozícióját a pontnak
-        #print("-------Pos: ",pos)
-        # Ha kozel vagyunk a falhoz, 1 sugaru r adodik, es egy pixelnyivel mindig pont mas key-t ker mint ami letezik.
-        # Ezt  elkerulendo, azt mondjuk, hogy ekkor a pos_new-hoz tartozo erteket keresse ki. (Arra a meghivaskor van
-        # figyelve, hogy pos new olyan legyyen ami benne van... (persze ez megint csak veszmegoldas)
-        if tuple(pos_in) in self.dists_in:
-            curr_dist_in = self.dists_in[tuple(pos_in)] # a dist_dict-ből lekérjük a start-tól való távolságát
-        else:
-            curr_dist_in = self.dists_in[tuple(pos_new)]
-        #reward = curr_dist - self.prev_dist # kivonjuk az előző lépésben kapott távolságból
-        #self.prev_dist = curr_dist # atz új lesz a régi, hogy a követkző lépésben legyen miből kivonni
-
+        while not np.any(tmp_in):
+            r_in = r_in + 1 # növeljük a disc sugarát
+            tmp_in = trk[pos_new[1] - r_in:pos_new[1] + r_in + 1, pos_new[0] - r_in:pos_new[0] + r_in + 1] # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
+            mask_in = disk(r_in)
+            tmp_in = np.multiply(mask_in, tmp_in) # maszkoljuk a disc-kel
+            tmp_in[tmp_in != col_in] = 0 # megnézzük, hogy van -e benne belso szin
+        indices_in = [p[0] for p in np.nonzero(tmp_in)] # ha volt benne piros, akkor lekérjük a pozícióját
+        offset_in = [indices_in[1] - r_in, indices_in[0] - r_in] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
+        pos_in = np.array(pos_new + offset_in) # kiszámoljuk a pályán lévő pozícióját a pontnak
 
         # Kulso ivre (ua. mint belsore)---------------------------------
-        tmp = [0]
+        tmp_out = [0]
         col_out = rgb2gray(np.reshape(self.track_outside_color, (1, 1, 3)))
-        r = 0
+        r_out = 0
 
-        while not np.any(tmp):
-            r = r + 1  # növeljük a disc sugarát
-            tmp = trk[pos_new[1] - r:pos_new[1] + r + 1,
-                  pos_new[0] - r:pos_new[0] + r + 1]  # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
-            mask = disk(r)
-            tmp = np.multiply(mask, tmp)  # maszkoljuk a disc-kel
-            tmp[tmp != col_out] = 0  # megnézzük, hogy van -e benne kulso szin
+        while not np.any(tmp_out):
+            r_out = r_out + 1  # növeljük a disc sugarát
+            tmp_out = trk[pos_new[1] - r_out:pos_new[1] + r_out + 1, pos_new[0] - r_out:pos_new[0] + r_out + 1]  # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
+            mask_out = disk(r_out)
+            tmp_out = np.multiply(mask_out, tmp_out)  # maszkoljuk a disc-kel
+            tmp_out[tmp_out != col_out] = 0  # megnézzük, hogy van -e benne kulso szin
+        indices_out = [p[0] for p in np.nonzero(tmp_out)]  # ha volt benne piros, akkor lekérjük a pozícióját
+        offset_out = [indices_out[1] - r_out, indices_out[0] - r_out]  # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
+        pos_out = np.array(pos_new + offset_out)  # kiszámoljuk a pályán lévő pozícióját a pontnak
 
-        indices = [p[0] for p in np.nonzero(tmp)]  # ha volt benne piros, akkor lekérjük a pozícióját
-        offset = [indices[1] - r, indices[0] - r]  # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
-        pos_out = np.array(pos_new + offset)  # kiszámoljuk a pályán lévő pozícióját a pontnak
-        # print("-------Pos: ",pos)
         # Ha kozel vagyunk a falhoz, 1 sugaru r adodik, es egy pixelnyivel mindig pont mas key-t ker mint ami letezik.
         # Ezt  elkerulendo, azt mondjuk, hogy ekkor a pos_new-hoz tartozo erteket keresse ki. (Arra a meghivaskor van
         # figyelve, hogy pos new olyan legyyen ami benne van... (persze ez megint csak veszmegoldas)
-        if tuple(pos_out) in self.dists_out:
+        if tuple(pos_in) in self.dists_in and tuple(pos_out) in self.dists_out:
+            curr_dist_in = self.dists_in[tuple(pos_in)] # a dist_dict-ből lekérjük a start-tól való távolságát
             curr_dist_out = self.dists_out[tuple(pos_out)] # a dist_dict-ből lekérjük a start-tól való távolságát
         else:
-            curr_dist_out = self.dists_out[tuple(pos_new)]
+            # ha nincsennek a kapott potok a dict-ben, akkor a külsö-belsö pontokat osszekoto szakaszon levo ponthoz kerunk ref-et
+            pos_fel = pos_out + (pos_in - pos_out) * 0.5 # rnd.uniform(0.4, 0.6)
+            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_fel)
+
         return curr_dist_in, pos_in, curr_dist_out, pos_out
 
     """
