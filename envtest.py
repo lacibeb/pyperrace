@@ -54,7 +54,7 @@ draw = True
 
 for ep in range(episodes):
     env.reset()
-    print("================EP.: ", ep) # epizód számának kiírása
+    print("================EP.:================ ", ep) # epizód számának kiírása
     if draw: # ha rajzolunk
         plt.clf()
         env.draw_track()
@@ -68,20 +68,22 @@ for ep in range(episodes):
     end = False
     color = (0, 0, 1)
     step = 0
-    while not end:
+    while not end or step == 50:
         step = step + 1
         if step == 1:
             action = 0
         else:
-            action = int(input('Give inut (-180..180 number)'))
+            #action = int(input('Give inut (-180..180 number)'))
             #action = int(np.random.randint(-180, 180, size=1))
-        print("action: ", action, "-------------")
+            action = env.ref_actions[step-2]
+        print("action: ", action, "=============================")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
-        print("be",gg_action,v,pos)
+        print("gg:", gg_action, "v:", v, "posold:", pos, "------")
         pos_new_to_chk = env.step(gg_action, v, pos)
-        print("ki",pos_new_to_chk)
+        print("pos_chk:", pos_new_to_chk, "---------------------")
         pos_old, pos_new, reward, end, section_nr = env.step_check(pos, pos_new_to_chk, 'blue')
-        print("aftstp posold:"pos_old, "posnew:", pos_new)
+        print("Aftstp posold:", pos_old, "posnew:", pos_new, "--")
+        pos = pos_old
         v_new = pos_new - pos
         s = [v[0], v[1], pos[0], pos[1]]
         s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
@@ -98,7 +100,8 @@ for ep in range(episodes):
         #print(s)
         #print(s2)
         epreward = epreward + r
-        print("reward: ", r)
+        print("reward: ", r, "----------------")
+        #print("dist: ", dist_new, "----------------")
         #print("Section: ", section_nr)
 
         replay_buffer.add(np.reshape(s, (s_dim,)), np.reshape(a, (a_dim,)), r,

@@ -74,9 +74,16 @@ class PaperRaceEnv:
         # print("DictIn:", self.dists_in)
         # print("DictOut:", self.dists_out)
 
-        # amikor leeg a palyarol es visszapattanast akarunk csinalni, akkor ez lesz True
+        # amikor leer a palyarol es visszapattanast akarunk csinalni, akkor ez lesz True
         self.pattan = False
         self.fordul = False
+
+        # van egy referencia lepessor ami valahogy beér a célba:
+        self.ref_actions = np.array([0, 0, -60, -90, -130, -130, -110, -90])
+
+        # ehhez van egy init, ami eloallitja a belso iv menten mert elorehaladast minden lepesben
+        #self.ref_dist = self.__get_ref_dicts(self.ref_actions)
+        self.ref_dist = np.array([37, 71, 108, 164, 207, 232, 250, 271]) # most csak igy fixen
 
     def draw_track(self):
         # pálya kirajzolása
@@ -115,9 +122,10 @@ class PaperRaceEnv:
         # az uj pozicio globalisban:
         pos_new = pos_old + spd_new
 
-        return pos_new
+        return np.array([int(pos_new[0]), int(pos_new[1])])
 
     def step_check(self, pos_old, pos_new, color):
+        print("STEP CHK MEGIVVA - posold:", pos_old, "posnew:", pos_new)
         # ha minden OK, semmi pittyputty nem lesz:
         reward = -1
         end = False
@@ -130,15 +138,18 @@ class PaperRaceEnv:
         spd_new = pos_new - pos_old
         crosses, t2, section_nr = self.sectionpass(pos_old, spd_new)
 
-        # megnezzuk a kapott pos a palyan van-e es ha lemegya akkor kint vagy bent:
-        step_on_track, inside, outside = self.is_on_track(pos_new)
-#NEMJO MEG A FORDULAS ES A PATTANAS SEM... eLSOZOR A PATTANST MEGCSINALNI. ATGONDOLNI AZT IS HOGY MI IS LESZ AZ EXP MEMORYBAN ILYNEKOR AZ ALLAPOTATMENET
+        # megnezzuk a kapott pos a palyan van-e es ha lemegya akkor kint vagy bent, es melyik az uccso ami meg bent van:
+        step_on_track, inside, outside, pos_on = self.is_on_track(pos_old, pos_new)
+
         # megnezzuk hol jarunk a palyan, hogy tudjuk elorefele haladunk-e
         curr_dist_in_old, pos_in_old, curr_dist_out_old, pos_out_old = self.get_ref(pos_old)
-        # megnezzuk, az uj pozicioban hol jarunk:
-        print("chkbe", pos_new)
-AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
-        curr_dist_in_new, pos_in_new, curr_dist_out_new, pos_out_new = self.get_ref(pos_new)
+        # megnezzuk, az uj pozicioban hol jarunk figyelve, hogy ha lementunk a palyarol akkor az utolso
+        # palyan toltott poziciot nezzuk:
+        if step_on_track:
+            curr_dist_in_new, pos_in_new, curr_dist_out_new, pos_out_new = self.get_ref(pos_new)
+        else:
+            curr_dist_in_new, pos_in_new, curr_dist_out_new, pos_out_new = self.get_ref(pos_on)
+
         # elore haladunk ha a belso iv menten vett tavolsag novekszik
         go_forward = curr_dist_in_old < curr_dist_in_new
 
@@ -146,6 +157,7 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
         if crosses and section_nr == len(self.sections) - 1 and step_on_track:
             print("\033[92m {}\033[00m".format("CELBAERT BE"))
             self.draw_step(pos_old, pos_new, color)
+            self.pattan = False
             reward = -t2
             end = True
             return pos_old, pos_new, reward, end, section_nr
@@ -155,6 +167,7 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
         if (crosses and section_nr == 0):
             print("\033[91m {}\033[00m".format("VISSZASTART"))
             self.draw_step(pos_old, pos_new, 'blue')
+            self.pattan = False
             reward = -300
             end = True
             return pos_old, pos_new, reward, end, section_nr
@@ -168,29 +181,20 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
         # ha lemenne a palyarol:
         if not step_on_track:
             print("\033[95m {}\033[00m".format("PATTAN"))
-            # eloszor meg kell hatarozni hogy hol megy le a palyarol:
-            pos_chk_tmp_next = pos_old #np.array([int(pos_old[0]), int(pos_old[1])])
-            ontrack = True
-            while ontrack:
-                pos_chk_tmp = pos_chk_tmp_next # pos_chk_int
-                pos_chk_tmp_next = pos_chk_tmp + (pos_new - pos_old) / np.linalg.norm((pos_new - pos_old)) * 2
-                pos_chk_int = np.array([int(pos_chk_tmp_next[0]), int(pos_chk_tmp_next[1])])
-                ontrack, inside, outside = self.is_on_track(pos_chk_int)
-
-            pos_chk = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
 
             # beallitjuk hogy naakkor ez egy pattanós sztituacio
             self.pattan = True
 
-            # lecsekkoljuk hogy ez a lepes szakaszt lep at, celbaer, vagy megfordul vagy akarmi. (Rekurzio)
-            pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_chk, 'green')
+            # lecsekkoljuk hogy az a resz amig epp lemegy a palyarol szakaszt lep at, celbaer, vagy megfordul
+            # vagy akarmi. (Rekurzio)
 
+            pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_on, 'green')
 
+            return pos_old, pos_new, reward, end, section_nr
 
-
-        # ha pattan van, (!:ilyenkor pos_new az elozo pos_chk, szoval pont a palya elhagyasa elotti pixel)
+        """# ha pattan van, (!:ilyenkor pos_new az elozo pos_chk, szoval pont a palya elhagyasa elotti pixel)
         if self.pattan:
-
+            print("\033[95m {}\033[00m".format("PATTAN2"))
             # ha ez lefut, ide ne lepjen be ide ujra
             self.pattan = False
 
@@ -205,29 +209,34 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
             # a visszapattinto felulet normalisa
             if inside:
                 en_ref = (pos_in_new - pos_out_new) / tck_wdt
-            else:
+            if outside:
                 en_ref = (pos_out_new - pos_in_new) / tck_wdt
 
-            # a visszapattanasi pont ne pont a fal legyen, mert akkor neha van hogy megsem palyan
-            # marad a pattanas utan. A pattanasi ponttol beljebb, a normalils iranyaba a szelesseg
-            # 10%-át
-            pos_patt = pos_new - en_ref * tck_wdt * 0  # nem 10% hanem 0, pont a szele
+            # Ha egy előző lépés még épp a pályán volt, a pattanás előtti lépés könnyen 0 hosszú lehet. (is_on_track fv
+            # -ben 2-t lépünk a pos_temp_chk_next meghatarozasakor)
+            print("zerus old-->new?", pos_new[0], pos_old[0], pos_new[1], pos_old[1])
+            if (pos_new[0] == pos_old[0]) and (pos_new[1] == pos_old[1]):
+                # ekkor az uj pos legyen a palya kozepe
+                pos_new = pos_new - en_ref * tck_wdt * 0.25
+            else:
+                # visszapattanas elotti vektor
+                v_bef = pos_new - pos_old
+                # print("posnew, pos_old in v_bef:", pos_new, pos_old)
+                # a visszapattano vektor
+                v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
 
-            # visszapattanas elotti vektor
-            v_bef = pos_new - pos_old
+                # az uj iranyba legyen kb 20 pixel hosszu a sebesseg
+                spd_new = (v_aft / np.linalg.norm(v_aft)) * 5
 
-            # a visszapattano vektor
-            v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
+                # megcsinlajuk a visszapattanas utani lepest
+                pos_old = np.array([int(pos_new[0]), int(pos_new[1])])
+                pos_new = pos_old + spd_new
+                # print("pattan error??? - v_bef, v_aft: ", v_bef, v_aft)
 
-            # az uj iranyba legyen kb 20 pixel hosszu a sebesseg
-            spd_new = (v_aft / np.linalg.norm(v_aft)) * 20
-
-            # megcsinlajuk a visszapattanas utani lepest
-            pos_old = np.array([int(pos_patt[0]), int(pos_patt[1])])
-            pos_new = pos_old + spd_new
             pos_new = np.array([int(pos_new[0]), int(pos_new[1])])
 
             # lecsekkoljuk hogy ez a lepes szakaszt lep at, celbaer, vagy megfordul vagy akarmi. (Rekurzio)
+            print("pattan old, new:", pos_old, pos_new)
             pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_new, 'green')
 
             # kiosztjuk a buntetest
@@ -235,7 +244,8 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
 
             return pos_old, pos_new, reward, end, section_nr
         """
-        # ha nem elorefele megy
+
+        """"# ha nem elorefele megy
         if not go_forward and not self.fordul:
             print("\033[96m {}\033[00m".format("FORDUL"))
 
@@ -279,30 +289,41 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
         # ha minden OK, fentiek kozul semmi nem igaz, akkor siman kirajzoljuk a lepest
         self.draw_step(pos_old, pos_new, color)
 
+        if (pos_new[0] == pos_old[0]) and (pos_new[1] == pos_old[1]):
+            end = True
         return pos_old, pos_new, reward, end, section_nr
 
-
-
-    def is_on_track(self, pos):
+    def is_on_track(self, pos_old, pos_new):
         """ a pálya színe és a pozíciónk pixelének színe alapján visszaadja, hogy rajta vagyunk -e a pályán, illetve kint
            vagy bent csusztunk le rola... Lehetne tuti okosabban mint ahogy most van."""
-
+        print("isontrack meghvva: posold:", pos_old, "posnew:", pos_new)
         # meg kell nezni egyatalan a palya kepen belul van-e a pos
         # print(pos)
-        if int(pos[1]) > (self.trk_pic.shape[0] - 1) or int(pos[0]) > (self.trk_pic.shape[1] - 1):
-            inside = True
+        if int(pos_new[1]) > (self.trk_pic.shape[0] - 1) or int(pos_new[0]) > (self.trk_pic.shape[1] - 1):
+            inside = False # Ha képen kívül, akkor pályán is kívül
             outside = True
             ontrack = False
+            pos_on = pos_old
         else:
             inside = False
             outside = False
             ontrack = True
-
-            if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_inside_color):
+            pos_on = pos_old
+            if np.array_equal(self.trk_pic[int(pos_new[1]), int(pos_new[0])], self.track_inside_color):
                 inside = True
-            if np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.track_outside_color):
+            if np.array_equal(self.trk_pic[int(pos_new[1]), int(pos_new[0])], self.track_outside_color):
                 outside = True
             if inside or outside:
+                pos_chk_tmp = pos_old
+                pos_chk_tmp_next = pos_old
+                ontrack_chk = True
+                while ontrack_chk:
+                    pos_chk_tmp = pos_chk_tmp_next  # pos_chk_int
+                    pos_chk_tmp_next = pos_chk_tmp + (pos_new - pos_old) / np.linalg.norm((pos_new - pos_old)) * 1 # mivel itt 2-t lépünk, könyen 0 vektor állhat elő pattanás előtt
+                    pos_chk_int = np.array([int(pos_chk_tmp_next[0]), int(pos_chk_tmp_next[1])])
+                    ontrack_chk = np.array_equal(self.trk_pic[pos_chk_int[1], pos_chk_int[0]], self.trk_col)
+                    #np.array_equal(self.trk_pic[pos_chk_int[1], pos_chk_int[0]], self.track_inside_color) or np.array_equal(self.trk_pic[pos_chk_int[1], pos_chk_int[0]], self.track_outside_color)
+                pos_on = np.array([int(pos_chk_tmp[0]), int(pos_chk_tmp[1])])
                 ontrack = False
 
             """
@@ -311,8 +332,8 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
             else:
                 ontrack = np.array_equal(self.trk_pic[int(pos[1]), int(pos[0])], self.trk_col)
             """
-
-        return ontrack, inside, outside
+        print("isontrack visszater: ontr, in, out, poson",ontrack, inside, outside, pos_on)
+        return ontrack, inside, outside, pos_on
 
     def gg_action(self, action):
         # az action-ökhöz tartozó vektor értékek
@@ -483,6 +504,7 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
         col_in = rgb2gray(np.reshape(self.track_inside_color, (1, 1, 3)))
         r_in = 0
 
+
         # az algoritmus úgy működik, hogy az aktuális pozícióban egyre negyobb sugárral
         # létrehoz egy diszket, amivel megnézi, hogy van -e r sugarú környezetében piros pixel
         # ha igen, akkor azt a pixelt kikeresi a dist_dict-ből, majd megnezi ehhez mennyi a ref sebesseggel mennyi ido
@@ -526,29 +548,59 @@ AZ A BAJ HOGY AMIKOR PATTAN AZ TALAPORTAL ---> NEM MEGSEM...
 
         return curr_dist_in, pos_in, curr_dist_out, pos_out
 
-    """
-    def get_reward(self, pos_old, pos_new, step_nr):
-        ""Reard ado fuggveny. Egy adott lepeshez (pos_old - pos new) ad jutalmat. Eredetileg az volt hogy -1 azaz mint
+    def get_time_diff(self, ):
+        """Reward ado fuggveny. Egy adott lepeshez (pos_old - pos new) ad jutalmat. Eredetileg az volt hogy -1 azaz mint
         mint eltelt idő. Most megnezzuk mivan ha egy referencia lepessorhoz kepest a nyert vagy veszetett ido lesz.
-        kb. mint a delta_time channel a MOTEC-ben""
+        kb. mint a delta_time channel a MOTEC-ben"""
+
+
+
+
+    """
+    def __get_ref_dicts(self, ref_actions):
 
         # Fent az env initbe kell egy referencia lepessor. Actionok, egy vektorban...vagy akarhogy.
         # Az Actionokhoz tudjuk a pos-okat minden lepesben
-        # Es tudjuk a dist_in es dist_outokat is minden lepeshez (a lepes egy timestep elvileg)
-        # A fentiek alapjan pl.:Look-up table szeruen tudunk barmilyen dist-hez lepest (idot) rendelni
 
-        # Megnezzuk hogy a pos_old es a pos_new milyen dist_old es dist_new-hez tartozik (in vagy out, vagy atlag...)
+        v = np.array(self.starting_spd)  # az elején a sebesség a startvonalra meroleges
+        pos = np.array(self.starting_pos)  # kezdőpozíció beállítása
+        reward = 0
+        epreward = 0
+        ref_dist = 0
+        end = False
+        color = (0, 0, 1)
+        steps = range(0, len(ref_actions))
 
-        # Ehez a dist_old es dist new-hoz megnezzuk hogy a referencia lepessor mennyi ido alatt jutott el ezek lesznek
-        # step_old es step_new.
+        for i in steps:
 
-        # A step_old es step_new kulonbsege azt adja hogy azt a tavot, szakaszt, amit a jelenlegi pos_old, pos_new
-        # megad, azt a ref lepessor, mennyi ido tette meg. A jelenlegi az 1 ido, hiszen egy lepes. A ketto kulonbsege
-        # adja majd pillanatnyi rewardot.
+            action = self.ref_actions[i]
+            #print("action: ", action, "=============================")
 
+            gg_action = self.gg_action(action)  # action-höz tartozó vektor lekérése
+            #print("gg:", gg_action, "v:", v, "posold:", pos, "------")
 
+            pos_new_to_chk = self.step(gg_action, v, pos)
+            #print("pos_chk:", pos_new_to_chk, "---------------------")
 
-        return reward
+            pos_old, pos_new, reward, end, section_nr = self.step_check(pos, pos_new_to_chk, 'blue')
+            #print("Aftstp posold:", pos_old, "posnew:", pos_new, "--")
+
+            #A fenti értelmezésben alapból a reward az valamiféle eltelt időt jelent
+
+            # Es tudjuk a dist_in es dist_outokat is minden lepeshez (a lepes egy timestep elvileg)
+            # A fentiek alapjan pl.:Look-up table szeruen tudunk barmilyen dist-hez lepest (idot) rendelni
+            curr_dist_in[i], pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+
+            # Megnezzuk hogy a pos_old es a pos_new milyen dist_old es dist_new-hez tartozik (in vagy out, vagy atlag...)
+
+            # Ehez a dist_old es dist new-hoz megnezzuk hogy a referencia lepessor mennyi ido alatt jutott el ezek lesznek
+            # step_old es step_new.
+
+            # A step_old es step_new kulonbsege azt adja hogy azt a tavot, szakaszt, amit a jelenlegi pos_old, pos_new
+            # megad, azt a ref lepessor, mennyi ido tette meg. A jelenlegi az 1 ido, hiszen egy lepes. A ketto kulonbsege
+            # adja majd pillanatnyi rewardot.
+
+        return
     """
 
 
