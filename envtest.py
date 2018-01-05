@@ -74,8 +74,8 @@ for ep in range(episodes):
             action = 0
         else:
             #action = int(input('Give inut (-180..180 number)'))
-            #action = int(np.random.randint(-180, 180, size=1))
-            action = env.ref_actions[step-2]
+            action = int(np.random.randint(-180, 180, size=1))
+            # action = env.ref_actions[step-2]
         print("action: ", action, "=============================")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
         print("gg:", gg_action, "v:", v, "posold:", pos, "------")
