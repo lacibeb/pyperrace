@@ -73,8 +73,8 @@ for ep in range(episodes):
         if step == 1:
             action = 0
         else:
-            #action = int(input('Give inut (-180..180 number)'))
-            action = int(np.random.randint(-180, 180, size=1))
+            action = int(input('Give inut (-180..180 number)'))
+            # action = int(np.random.randint(-180, 180, size=1))
             # action = env.ref_actions[step-2]
         print("action: ", action, "=============================")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
@@ -83,6 +83,8 @@ for ep in range(episodes):
         print("pos_chk:", pos_new_to_chk, "---------------------")
         pos_old, pos_new, reward, end, section_nr = env.step_check(pos, pos_new_to_chk, 'blue')
         print("Aftstp posold:", pos_old, "posnew:", pos_new, "--")
+        rew_dt = env.get_time_diff(pos_old, pos_new, reward)
+
         pos = pos_old
         v_new = pos_new - pos
         s = [v[0], v[1], pos[0], pos[1]]
@@ -94,7 +96,7 @@ for ep in range(episodes):
         # print("ref_dist: ", ref_dist)
         # print("curr_dist: ", curr_dist)
         # r = curr_dist - ref_dist
-        r = reward
+        r = rew_dt
         terminal = end
 
         #print(s)
@@ -103,7 +105,6 @@ for ep in range(episodes):
         print("reward: ", r, "----------------")
         #print("dist: ", dist_new, "----------------")
         #print("Section: ", section_nr)
-
         replay_buffer.add(np.reshape(s, (s_dim,)), np.reshape(a, (a_dim,)), r,
                           terminal, np.reshape(s2, (s_dim,)))
 

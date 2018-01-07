@@ -53,7 +53,7 @@ class PaperRaceEnv:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 20
+        self.starting_spd = self.e_start_spd * 10
 
         self.gg_actions = None # az action-ökhöz tartozó vektor értékeit cash-eli a legelajén és ebben tárolja
 
@@ -81,11 +81,12 @@ class PaperRaceEnv:
         self.outside = False
 
         # van egy referencia lepessor ami valahogy beér a célba:
-        self.ref_actions = np.array([0, 0, -60, -90, -130, -130, -110, -90])
+        self.ref_actions = np.array([0, 15, -75, -95, -105, -135, -130, -110])
 
         # ehhez van egy init, ami eloallitja a belso iv menten mert elorehaladast minden lepesben
         #self.ref_dist = self.__get_ref_dicts(self.ref_actions)
-        self.ref_dist = np.array([37, 71, 108, 164, 207, 232, 250, 271]) # most csak igy fixen
+        self.ref_dist, self.ref_steps = self.__get_ref_dicts(self.ref_actions) # np.array([37, 71, 108, 164, 207, 232, 250, 271]) # most csak igy fixen
+
 
     def draw_track(self):
         # pálya kirajzolása
@@ -125,7 +126,7 @@ class PaperRaceEnv:
         return np.array([int(pos_new[0]), int(pos_new[1])])
 
     def step_check(self, pos_old, pos_new, color):
-        print("STEP CHK MEGHIVVA - posold:", pos_old, "posnew:", pos_new)
+        # print("STEP CHK MEGHIVVA - posold:", pos_old, "posnew:", pos_new)
         # ha minden OK, semmi pittyputty nem lesz:
         reward = -1
         if (pos_new[0] == pos_old[0]) and (pos_new[1] == pos_old[1]):
@@ -146,16 +147,16 @@ class PaperRaceEnv:
         step_on_track = self.is_on_track(pos_new)
 
         # megnezzuk az elozo pozicioban mik voltak a ref jellemzok:
-        curr_dist_in_old, pos_in_old, curr_dist_out_old, pos_out_old = self.get_ref(pos_old)
+        dist_in_old, pos_in_old, dist_out_old, pos_out_old = self.get_ref(pos_old)
 
         # megnezzuk, az uj pozicioban hol jarunk figyelve, hogy ha lementunk a palyarol akkor az utolso
         # palyan toltott poziciot nezzuk:
         if step_on_track:
-            curr_dist_in_new, pos_in_new, curr_dist_out_new, pos_out_new = self.get_ref(pos_new)
+            dist_in_new, pos_in_new, dist_out_new, pos_out_new = self.get_ref(pos_new)
         else:
             # ha nem palyan vagyunk azt is megnezzuk merre mentunk le es hol
             self.inside, self.outside, pos_on = self.out_track(pos_old, pos_new)
-            curr_dist_in_new, pos_in_new, curr_dist_out_new, pos_out_new = self.get_ref(pos_on)
+            dist_in_new, pos_in_new, dist_out_new, pos_out_new = self.get_ref(pos_on)
 
             print("\033[95m {}\033[00m".format("PATTAN"))
 
@@ -175,7 +176,7 @@ class PaperRaceEnv:
             # return pos_old, pos_new, reward, end, section_nr
 
         # elore haladunk ha a belso iv menten vett tavolsag novekszik
-        go_forward = curr_dist_in_old < curr_dist_in_new
+        go_forward = dist_in_old < dist_in_new
 
         # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert:
         if crosses and section_nr == len(self.sections) - 1 and step_on_track:
@@ -241,7 +242,7 @@ class PaperRaceEnv:
             pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_new, 'green')
 
             # a jutalom (bunti)
-            reward = -12
+            reward = -22
 
             return pos_old, pos_new, reward, end, section_nr
 
@@ -297,7 +298,7 @@ class PaperRaceEnv:
             pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_new, 'green')
 
             # kiosztjuk a buntetest a pattanasert:
-            reward = -11
+            reward = -7
 
             return pos_old, pos_new, reward, end, section_nr
 
@@ -307,7 +308,9 @@ class PaperRaceEnv:
 
         # if (pos_new[0] == pos_old[0]) and (pos_new[1] == pos_old[1]):
         #     end = True
-        print("STEP CHK VISZZATER - posold:", pos_old, "posnew:", pos_new, "r:", reward, "end:", end)
+
+
+        #print("STEP CHK VISZZATER - posold:", pos_old, "posnew:", pos_new, "r:", reward, "end:", end)
         return pos_old, pos_new, reward, end, section_nr
 
     def is_on_track(self, pos):
@@ -411,7 +414,7 @@ class PaperRaceEnv:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 10
+        #self.starting_spd = self.e_start_spd * 10
 
 
 
@@ -559,15 +562,47 @@ class PaperRaceEnv:
 
         return curr_dist_in, pos_in, curr_dist_out, pos_out
 
-    def get_time_diff(self, ):
+    def get_time_diff(self, pos_old, pos_new, act_rew):
         """Reward ado fuggveny. Egy adott lepeshez (pos_old - pos new) ad jutalmat. Eredetileg az volt hogy -1 azaz mint
         mint eltelt idő. Most megnezzuk mivan ha egy referencia lepessorhoz kepest a nyert vagy veszetett ido lesz.
-        kb. mint a delta_time channel a MOTEC-ben"""
+        kb. mint a delta_time channel a MOTEC-ben
 
+        pre_dist_in, az aktualis lepessor, elozo pozicio belso iv menti tavolsaga,
+        curr_dist_in, az aktualis lepessor, jelenlegi pozicio belso iv menti tavolsaga
+        act_rew: az aktualis lepessor mennyi ido alatt ert e tavolsagok kozott
 
+        visszater a rew_dt, ami azt adja, hogy a referencia lepessorhoz kepest ez mennyivel tobb ido"""
 
+        curr_dist_in, curr_pos_in, curr_dist_out, curr_pos_out = self.get_ref(pos_new)
+        pre_dist_in, pre_pos_in, pre_dist_out, pre_pos_out = self.get_ref(pos_old)
 
-    """
+        # amennyi ido (lepes) alatt a ref_actionok, a pre_dist-ből a curr_dist-be eljutottak--------------------------
+        # look-up szerűen lesz. Először a bemenetek:
+        x = self.ref_dist
+        y = self.ref_steps
+
+        xvals = np.array([pre_dist_in, curr_dist_in])
+        print("elozo es aktualis tav:", xvals)
+
+        # ezekre a tavolsagokra a referencia lepessor ennyi ido alaptt jutott el
+        yinterp = np.interp(xvals, x, y, 0)
+        # print("ref ennyi ido alatt jutott ezekre:", yinterp)
+
+        # tehat ezt a negyasau lepest a referencia ennyi ido alatt tette meg (- legyen, hogy a kisebb ido legyen a magasabb
+        # reward) :
+        ref_delta = -yinterp[1] + yinterp[0]
+        # print("a ref. ezen lepesnyi ideje:", ref_delta)
+
+        # az atualis lepesben az eltelt ido nyilvan -1, illetve ha ido-bunti van akkor ennel tobb, eppen a reward
+        # print("elozo es aktualis lepes kozott eltelt ido:", act_rew)
+
+        # amenyivel az aktualis ebben a lepesben jobb, azaz kevesebb ido alatt tette meg ezt a elmozdulat, mint a ref
+        # lepessor, az:
+        rew_dt = -ref_delta + act_rew
+        # print("az aktualis, ebben a lepesben megtett tavot ennyivel kevesebb ido alatt tette meg mint a ref. (ha (-) akkor meg több):", rew_dt)
+
+        return rew_dt
+
     def __get_ref_dicts(self, ref_actions):
 
         # Fent az env initbe kell egy referencia lepessor. Actionok, egy vektorban...vagy akarhogy.
@@ -575,44 +610,43 @@ class PaperRaceEnv:
 
         v = np.array(self.starting_spd)  # az elején a sebesség a startvonalra meroleges
         pos = np.array(self.starting_pos)  # kezdőpozíció beállítása
-        reward = 0
         epreward = 0
-        ref_dist = 0
-        end = False
-        color = (0, 0, 1)
-        steps = range(0, len(ref_actions))
 
-        for i in steps:
+        steps_nr = range(0, len(ref_actions))
 
+        ref_steps = np.zeros(len(ref_actions))
+        ref_dist = np.zeros(len(ref_actions))
+
+        plt.clf()
+        self.draw_track()
+
+        for i in steps_nr:
+            nye = input('Give input')
             action = self.ref_actions[i]
-            #print("action: ", action, "=============================")
-
+            print(action)
             gg_action = self.gg_action(action)  # action-höz tartozó vektor lekérése
-            #print("gg:", gg_action, "v:", v, "posold:", pos, "------")
-
             pos_new_to_chk = self.step(gg_action, v, pos)
-            #print("pos_chk:", pos_new_to_chk, "---------------------")
-
             pos_old, pos_new, reward, end, section_nr = self.step_check(pos, pos_new_to_chk, 'blue')
-            #print("Aftstp posold:", pos_old, "posnew:", pos_new, "--")
+            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+            ref_dist[i] = curr_dist_in
+            epreward = epreward + reward
+            ref_steps[i] = -epreward
 
-            #A fenti értelmezésben alapból a reward az valamiféle eltelt időt jelent
+            pos = pos_old
+            v_new = pos_new - pos
 
-            # Es tudjuk a dist_in es dist_outokat is minden lepeshez (a lepes egy timestep elvileg)
-            # A fentiek alapjan pl.:Look-up table szeruen tudunk barmilyen dist-hez lepest (idot) rendelni
-            curr_dist_in[i], pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+            if True:
+                plt.pause(0.001)
+                plt.draw()
 
-            # Megnezzuk hogy a pos_old es a pos_new milyen dist_old es dist_new-hez tartozik (in vagy out, vagy atlag...)
+            v = v_new
+            pos = pos_new
 
-            # Ehez a dist_old es dist new-hoz megnezzuk hogy a referencia lepessor mennyi ido alatt jutott el ezek lesznek
-            # step_old es step_new.
+        print(ref_dist)
+        print(ref_steps)
 
-            # A step_old es step_new kulonbsege azt adja hogy azt a tavot, szakaszt, amit a jelenlegi pos_old, pos_new
-            # megad, azt a ref lepessor, mennyi ido tette meg. A jelenlegi az 1 ido, hiszen egy lepes. A ketto kulonbsege
-            # adja majd pillanatnyi rewardot.
+        return ref_dist, ref_steps
 
-        return
-    """
 
 
     def __get_dists_in(self, rajz=False):

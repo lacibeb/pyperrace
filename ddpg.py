@@ -280,7 +280,7 @@ def train(sess, env, args, actor, critic, actor_noise):
 
     # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
     # tanulni, csak tolteni fel az exerience memoryt
-    rand_ep_for_exp = int(args['max_episodes']) * 0.04
+    rand_ep_for_exp = int(args['max_episodes']) * 0.01
 
     # ====================
     # Indul egy epizod:
@@ -321,11 +321,11 @@ def train(sess, env, args, actor, critic, actor_noise):
         # random episode
 
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
-        rand_stp_for_exp = (int(args['max_episodes']) - (1.93 * i)) / int(args['max_episodes'])
+        rand_stp_for_exp = (int(args['max_episodes']) - (7 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
 
         # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
-        rand_stp_min = 0.05
+        rand_stp_min = 0.005
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
@@ -350,17 +350,25 @@ def train(sess, env, args, actor, critic, actor_noise):
                 a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-3, 3, size=1))
                 print("Netwrk action:--------", a)
 
+            # allapotatmenet a lepes hatasara:-----------------------------------------------------
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
-            #általában ez a fenti két sor egymsor. csak nálunk most így van megírva a környezet, hogy így kell neki beadni az actiont
-            #megnézzük mit mond a környezet az adott álapotban az adott action-ra:
-            #s2, r, terminal, info = env.step(a)
-            v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
+            # print("gg:", gg_action, "v:", v, "posold:", pos, "------")
+            pos_new_to_chk = env.step(gg_action, v, pos)
+            # print("pos_chk:", pos_new_to_chk, "---------------------")
+            pos_old, pos_new, reward, end, section_nr = env.step_check(pos, pos_new_to_chk, 'blue')
+            # a reward atszamitasa a referenciahoz kepest:
+            rew_dt = env.get_time_diff(pos, pos_new, reward)
+            # allapotatmenet a lepes hatasara:-----------------------------------------------------
 
             #megintcsak a kétfelől összemásolgatott küdok miatt, feleltessünkk meg egymásnak változókat:
+            pos = pos_old
+            v_new = pos_new - pos
             s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
-            r = reward
+            r = rew_dt
             terminal = end
             ep_reward += r
+            print("reward: %6.3f, epreward: %8.3f" % (r, ep_reward))
+
 
             #és akkor a megfeleltetett változókkal már lehet csinálni a replay memory-t:
             replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r, terminal, np.reshape(s2, (actor.s_dim,)))
@@ -474,7 +482,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
     # agent parameters
-    parser.add_argument('--actor-lr', help='actor network learning rate',   default=0.00005)
+    parser.add_argument('--actor-lr', help='actor network learning rate',   default=0.00001)
     parser.add_argument('--critic-lr', help='critic network learning rate', default=0.001)
     parser.add_argument('--gamma', help='discount factor for critic updates', default=0.995)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
@@ -484,7 +492,7 @@ if __name__ == '__main__':
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=20000)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=5000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
