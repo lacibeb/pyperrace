@@ -80,8 +80,12 @@ class PaperRaceEnv:
         self.inside = False
         self.outside = False
 
-        # van egy referencia lepessor ami valahogy beér a célba:
-        self.ref_actions = np.array([0, 15, -75, -95, -105, -135, -130, -110])
+        # van egy referencia lepessor ami valahogy beér a célba (palya4) :
+        #self.ref_actions = np.array([0, 15, -75, -95, -105, -135, -130, -110])
+
+        # van egy referencia lepessor ami valahogy beér a célba (palya5) :
+        self.ref_actions = np.array([0, 150, 180, -160, -160, -160, -150, -90, -90, -110, -110, -120, -110, -110, 0,
+                                     90, -90, 90, -140, 90, 110, 90, 120, 120, 120, 120, 100, -20, -10, 0, 0, 0])
 
         # ehhez van egy init, ami eloallitja a belso iv menten mert elorehaladast minden lepesben
         #self.ref_dist = self.__get_ref_dicts(self.ref_actions)
@@ -235,7 +239,7 @@ class PaperRaceEnv:
             n_szel = np.array([-e_szel[1], e_szel[0]])
 
             # az uj sebesseg:
-            spd_new = n_szel * 100
+            spd_new = n_szel * 40
 
             # az uj poziciok:
             pos_old = pos_new
@@ -280,7 +284,7 @@ class PaperRaceEnv:
             v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
 
             # az uj iranyba legyen kb 20 pixel hosszu a sebesseg
-            spd_new = (v_aft / np.linalg.norm(v_aft)) * 5
+            spd_new = (v_aft / np.linalg.norm(v_aft)) * 40
 
             # megcsinlajuk a visszapattanas utani lepest
             pos_old = np.array([int(pos_new[0]), int(pos_new[1])])

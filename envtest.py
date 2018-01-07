@@ -32,12 +32,12 @@ sections = np.array([[273, 125, 273, 64],
                      [240, 400, 330, 380]])
 # [190, 125, 190, 64]])
 """
-sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
-                     [370, 195, 440, 270]])
+#sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
+#                     [370, 195, 440, 270]])
 
 # palya5.bmp-hez:
-sections = np.array([[ 670,  170,  670,  320],  # [333, 125, 333, 64],[394, 157, 440, 102],
-                     [1000, 1050, 1000, 1180]])
+sections = np.array([[ 670,  310,  670,  130],  # [333, 125, 333, 64],[394, 157, 440, 102],
+                     [1250, 680, 1250, 550]])
 
 
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
@@ -78,7 +78,7 @@ for ep in range(episodes):
         if step == 1:
             action = 0
         else:
-            # action = int(input('Give inut (-180..180 number)'))
+            #action = int(input('Give inut (-180..180 number)'))
             action = int(np.random.randint(-180, 180, size=1))
             # action = env.ref_actions[step-2]
         print("action: ", action, "=============================")
