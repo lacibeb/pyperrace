@@ -236,7 +236,7 @@ class PaperRaceEnv:
                 spd_new = n_szel * 20
 
                 # a jutalom (bunti)
-                reward = -12
+                reward = -100
 
                 # es ne legyen vege
                 end = False
