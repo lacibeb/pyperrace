@@ -129,7 +129,10 @@ class PaperRaceEnv:
         # ha minden OK, semmi pittyputty nem lesz:
         reward = -1
         if (pos_new[0] == pos_old[0]) and (pos_new[1] == pos_old[1]):
+            print("\033[91m {}\033[00m".format("MEGALL"))
             end = True
+            reward = -120
+
         else:
             end = False
 

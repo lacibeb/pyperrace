@@ -42,7 +42,7 @@ ref_pos = np.zeros(len(ref_actions))
 # ref_dist = np.zeros(len(ref_actions))
 i = 0
 
-while i in steps and not end:
+while not end:
     i += 1
     action = int(input('Give inut (-180..180 number)'))
     #ref_action = env.ref_actions[i]
@@ -63,21 +63,26 @@ while i in steps and not end:
     y = ref_steps
 
     xvals = np.array([pre_dist_in, curr_dist_in])
-    #xvals = curr_dist_in
-    yinterp = np.interp(xvals, x, y, 0)
-    ref_delta = yinterp[1] - yinterp[0]
-    ref_time = yinterp
     print("elozo es aktualis tav:", xvals)
+
+    # ezekre a tavolsagokra a referencia lepessor ennyi ido alaptt jutott el
+    yinterp = np.interp(xvals, x, y, 0)
     print("ref ennyi ido alatt jutott ezekre:", yinterp)
-    print("az ido kulonbseg:", ref_delta)
 
-    # amennyi idő alatt az aktuális nagymenő eljutott a pre_dist-ből a curr_dist-be az épp a reward (általában: 1)
+    # tehat ezt a negyasau lepest a referencia ennyi ido alatt tette meg (- legyen, hogy a kisebb ido legyen a magasabb
+    # reward) :
+    ref_delta = -yinterp[1] + yinterp[0]
+    print("a ref. ezen lepesnyi ideje:", ref_delta)
 
-    rew_dt = ref_delta - (-reward)
-    print("elozo es aktualis lepesben az idok:", i-1, i)
+    # az atualis lepesben az eltelt ido nyilvan -1, illetve ha ido-bunti van akkor ennel tobb, eppen a reward
+    print("elozo es aktualis lepes kozott eltelt ido:", reward)
+
+    # amenyivel az aktualis ebben a lepesben jobb, azaz kevesebb ido alatt tette meg ezt a elmozdulat, mint a ref
+    # lepessor, az:
+    rew_dt = -ref_delta + reward
     print("az aktualis, ebben a lepesben megtett tavot ennyivel kevesebb ido alatt tette meg mint a ref. (ha (-) akkor meg több):", rew_dt)
 
-    epreward = epreward + (-reward)
+    epreward = epreward + rew_dt
 
     pos = pos_old
     v_new = pos_new - pos
@@ -89,8 +94,8 @@ while i in steps and not end:
     v = v_new
     pos = pos_new
 
-print("ref epizod reward:", ref_steps[-1])
-print("aktual epreward:", epreward)
+    print("ref epizod reward:",- ref_steps[-1])
+    print("aktual epreward:", epreward)
 
 
 
