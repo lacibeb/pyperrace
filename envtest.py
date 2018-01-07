@@ -35,9 +35,14 @@ sections = np.array([[273, 125, 273, 64],
 sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
                      [370, 195, 440, 270]])
 
+# palya5.bmp-hez:
+sections = np.array([[ 670,  170,  670,  320],  # [333, 125, 333, 64],[394, 157, 440, 102],
+                     [1000, 1050, 1000, 1180]])
+
+
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
-env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False) # paperrace környezet létrehozása
+env = PaperRaceEnv('PALYA5.bmp', trk_col, 'GG1.bmp', sections, random_init=False) # paperrace környezet létrehozása
 mem_size = 100 # a memória mérete, amiből a batch-be válogatunk
 batch_size = 10 # batch mérete, ami a tanítási adatokat tartalmazza
 episodes = 1000 # hányszor fusson a tanítás
@@ -73,8 +78,8 @@ for ep in range(episodes):
         if step == 1:
             action = 0
         else:
-            action = int(input('Give inut (-180..180 number)'))
-            # action = int(np.random.randint(-180, 180, size=1))
+            # action = int(input('Give inut (-180..180 number)'))
+            action = int(np.random.randint(-180, 180, size=1))
             # action = env.ref_actions[step-2]
         print("action: ", action, "=============================")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése

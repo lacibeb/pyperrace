@@ -53,7 +53,7 @@ class PaperRaceEnv:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 10
+        self.starting_spd = self.e_start_spd * 100
 
         self.gg_actions = None # az action-ökhöz tartozó vektor értékeit cash-eli a legelajén és ebben tárolja
 
@@ -167,13 +167,16 @@ class PaperRaceEnv:
 
             # beallitjuk hogy naakkor ez egy pattanós sztituacio
             self.pattan = True
+            #self.pattan = False
 
             # lecsekkoljuk hogy az a resz amig epp lemegy a palyarol szakaszt lep at, celbaer, vagy megfordul
             # vagy akarmi. (Rekurzio)
             pos_old, pos_new, reward, end, section_nr = self.step_check(pos_old, pos_on, 'green')
 
+            #end = True
+            reward= -12
 
-            # return pos_old, pos_new, reward, end, section_nr
+            #return pos_old, pos_new, reward, end, section_nr
 
         # elore haladunk ha a belso iv menten vett tavolsag novekszik
         go_forward = dist_in_old < dist_in_new
@@ -232,7 +235,7 @@ class PaperRaceEnv:
             n_szel = np.array([-e_szel[1], e_szel[0]])
 
             # az uj sebesseg:
-            spd_new = n_szel * 5
+            spd_new = n_szel * 100
 
             # az uj poziciok:
             pos_old = pos_new
@@ -621,7 +624,7 @@ class PaperRaceEnv:
         self.draw_track()
 
         for i in steps_nr:
-            nye = input('Give input')
+            #nye = input('Give input')
             action = self.ref_actions[i]
             print(action)
             gg_action = self.gg_action(action)  # action-höz tartozó vektor lekérése
