@@ -343,7 +343,8 @@ def train(sess, env, args, actor, critic, actor_noise):
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
             if rand_episode or rand_step:
-                a = min(-180, max(180, env.ref_actions[j] #+ (np.random.randint(-30, 30, size=1))), -180)
+                #a = min(-180, max(180, env.ref_actions[j] + (np.random.randint(-30, 30, size=1))), -180)
+                a = np.random.randint(-180, 180, size=1)
                 print("\033[94m {}\033[00m" .format("        -------Random action:"), a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
