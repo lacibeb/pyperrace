@@ -280,7 +280,7 @@ def train(sess, env, args, actor, critic, actor_noise):
 
     # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
     # tanulni, csak tolteni fel az exerience memoryt
-    rand_ep_for_exp = int(args['max_episodes']) * 0.01
+    rand_ep_for_exp = int(args['max_episodes']) * 0.001
 
     # ====================
     # Indul egy epizod:
@@ -321,11 +321,11 @@ def train(sess, env, args, actor, critic, actor_noise):
         # random episode
 
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
-        rand_stp_for_exp = (int(args['max_episodes']) - (7 * i)) / int(args['max_episodes'])
+        rand_stp_for_exp = (int(args['max_episodes']) - (100 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
 
         # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
-        rand_stp_min = 0.005
+        rand_stp_min = 0.001
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
@@ -343,7 +343,7 @@ def train(sess, env, args, actor, critic, actor_noise):
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
             if rand_episode or rand_step:
-                a = int(np.random.randint(-180, 180, size=1))
+                a = min(-180, max(180, env.ref_actions[j] #+ (np.random.randint(-30, 30, size=1))), -180)
                 print("\033[94m {}\033[00m" .format("        -------Random action:"), a)
             # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
@@ -444,15 +444,17 @@ def main(args):
         #sections = np.array([[273, 125, 273,  64],
         #                     [347, 125, 347,  65],
 
-        sections = np.array([[273, 125, 273, 64], # [333, 125, 333, 64],[394, 157, 440, 102],
-                             [370, 195, 440, 270]])
+        #sections = np.array([[273, 125, 273, 64], # [333, 125, 333, 64],[394, 157, 440, 102],
                             #[331, 212, 331, 267]])
                             #[220, 300, 280, 300],
                             #[240, 400, 300, 380]])
                             #[190, 125, 190, 64]])
+        # palya5.bmp-hez:
+        sections = np.array([[670, 310, 670, 130],  # [333, 125, 333, 64],[394, 157, 440, 102],
+                             [1250, 680, 1250, 550]])
 
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
-        env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
+        env = PaperRaceEnv('PALYA5.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
 
         np.random.seed(int(args['random_seed']))
         tf.set_random_seed(int(args['random_seed']))
@@ -493,7 +495,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
     parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=5000)
-    parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
+    parser.add_argument('--max-episode-len', help='max length of 1 episode', default=96)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
     parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./results/gym_ddpg')
