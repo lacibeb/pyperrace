@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
+import random as rnd
 from numpy import linalg as LA
 from random import randint
 from skimage.morphology import disk
@@ -51,7 +52,7 @@ class PaperRaceEnv:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 20
+        self.starting_spd = self.e_start_spd * 40
 
         self.gg_actions = None # az action-ökhöz tartozó vektor értékeit cash-eli a legelajén és ebben tárolja
 
@@ -71,6 +72,19 @@ class PaperRaceEnv:
         self.dists_out = self.__get_dists_out(True) # a kezdőponttól való "távolságot" tárolja
         # print("DictIn:", self.dists_in)
         # print("DictOut:", self.dists_out)
+
+
+        # van egy referencia lepessor ami valahogy beér a célba (palya4) :
+        self.ref_actions = np.array([0, -180, -95, -95, -90, -95])
+
+        # van egy referencia lepessor ami valahogy beér a célba (palya5) :
+        # self.ref_actions = np.array([0, 150, 180, -160, -160, -160, -150, -90, -90, -110, -110, -120, -110, -110, 0,
+        #                             90, -90, 90, -140, 90, 110, 90, 120, 120, 120, 120, 100, -20, -10, 0, 0, 0])
+
+        # ehhez van egy init, ami eloallitja a belso iv menten mert elorehaladast minden lepesben
+        #self.ref_dist = self.__get_ref_dicts(self.ref_actions)
+        self.ref_dist, self.ref_steps = self.__get_ref_dicts(self.ref_actions)
+
 
     def draw_track(self):
         # pálya kirajzolása
@@ -165,7 +179,7 @@ class PaperRaceEnv:
                 v_aft = v_bef - 2 * (np.dot(v_bef, en_ref)) * en_ref
 
                 # az uj iranyba legyen kb 10 pixel hosszu a sebesseg
-                spd_new = (v_aft / np.linalg.norm(v_aft)) * 20
+                spd_new = (v_aft / np.linalg.norm(v_aft)) * 40
 
                 # kirajzoljuk a falig megtett szakaszt
                 if draw:  # kirajzolja az autót
@@ -224,7 +238,7 @@ class PaperRaceEnv:
                 # mint a palyaelhagyaskor a "visszapattanas". berakjuk a palya kozepere, "jo" iranyba
 
                 # az uj pozicio a palya kozepe:
-                pos_new = pos_temp_in_old + (pos_temp_out_old - pos_temp_in_old) / 2 # * rnd.uniform(0.1, 0.9)
+                pos_new = pos_temp_in_old + (pos_temp_out_old - pos_temp_in_old) * rnd.uniform(0.4, 0.6)
 
                 # az uj sebesseg meroleges a kozepvonalra. ehhez a ket szel osszakoto iranyvekror:
                 e_szel = (pos_temp_out_old - pos_temp_in_old) / np.linalg.norm([pos_temp_out_old - pos_temp_in_old])
@@ -233,7 +247,7 @@ class PaperRaceEnv:
                 n_szel = np.array([-e_szel[1], e_szel[0]])
 
                 # az uj sebesseg:
-                spd_new = n_szel * 20
+                spd_new = n_szel * 30
 
                 # a jutalom (bunti)
                 reward = -100
@@ -380,7 +394,7 @@ class PaperRaceEnv:
         self.starting_pos = np.array([self.start_x, self.start_y]) + np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
 
         #a kezdo sebesseget a startvonalra merolegesre akarjuk:
-        self.starting_spd = self.e_start_spd * 10
+        #self.starting_spd = self.starting_spd
 
 
 
@@ -474,70 +488,57 @@ class PaperRaceEnv:
         Output:
         belso iv menten megtett ut,kulso iv menten megtett ut, belso iv referencia pontja, es kulso iv ref pontja"""
 
-        # valamiert rendszeresen elofordul hogy olyan koordinataval akarja meghivni a dict-eket, amik nincsennek
-        # bennuk. Ennek utana kene jarni, de lusta vagyok. Szal inkabb itt valahogy kezeljuk a fuggvenyen belul.
-
-
-
-        trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
-        pos_new = np.array(pos_new, dtype='int32')
-
-        #Belso ivre---------------------------------
-        tmp = [0]
-        col_in = rgb2gray(np.reshape(self.track_inside_color, (1, 1, 3)))
-        r = 0
-
-        # az algoritmus úgy működik, hogy az aktuális pozícióban egyre negyobb sugárral
+        # az algoritmus alapvetoen  úgy működik, hogy az aktuális pozícióban egyre negyobb sugárral
         # létrehoz egy diszket, amivel megnézi, hogy van -e r sugarú környezetében piros pixel
         # ha igen, akkor azt a pixelt kikeresi a dist_dict-ből, majd megnezi ehhez mennyi a ref sebesseggel mennyi ido
         # jar
 
-        while not np.any(tmp):
-            r = r + 1 # növeljük a disc sugarát
-            tmp = trk[pos_new[1] - r:pos_new[1] + r + 1, pos_new[0] - r:pos_new[0] + r + 1] # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
-            mask = disk(r)
-            tmp = np.multiply(mask, tmp) # maszkoljuk a disc-kel
-            tmp[tmp != col_in] = 0 # megnézzük, hogy van -e benne belso szin
+        trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
+        pos_new = np.array(pos_new, dtype='int32')
 
-        indices = [p[0] for p in np.nonzero(tmp)] # ha volt benne piros, akkor lekérjük a pozícióját
-        offset = [indices[1] - r, indices[0] - r] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
-        pos_in = np.array(pos_new + offset) # kiszámoljuk a pályán lévő pozícióját a pontnak
-        #print("-------Pos: ",pos)
-        # Ha kozel vagyunk a falhoz, 1 sugaru r adodik, es egy pixelnyivel mindig pont mas key-t ker mint ami letezik.
-        # Ezt  elkerulendo, azt mondjuk, hogy ekkor a pos_new-hoz tartozo erteket keresse ki. (Arra a meghivaskor van
-        # figyelve, hogy pos new olyan legyyen ami benne van... (persze ez megint csak veszmegoldas)
-        if tuple(pos_in) in self.dists_in:
-            curr_dist_in = self.dists_in[tuple(pos_in)] # a dist_dict-ből lekérjük a start-tól való távolságát
-        else:
-            curr_dist_in = self.dists_in[tuple(pos_new)]
-        #reward = curr_dist - self.prev_dist # kivonjuk az előző lépésben kapott távolságból
-        #self.prev_dist = curr_dist # atz új lesz a régi, hogy a követkző lépésben legyen miből kivonni
+        # pos_new-el egy vonalban levo belso pont meghatarozasa---------
+        tmp_in = [0]
+        col_in = rgb2gray(np.reshape(self.track_inside_color, (1, 1, 3)))
+        r_in = 0
+        while not np.any(tmp_in):
+            r_in = r_in + 1 # növeljük a disc sugarát
+            tmp_in = trk[pos_new[1] - r_in:pos_new[1] + r_in + 1, pos_new[0] - r_in:pos_new[0] + r_in + 1] # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
+            mask_in = disk(r_in)
+            tmp_in = np.multiply(mask_in, tmp_in) # maszkoljuk a disc-kel
+            tmp_in[tmp_in != col_in] = 0 # megnézzük, hogy van -e benne belso szin
+        indices_in = [p[0] for p in np.nonzero(tmp_in)] # ha volt benne piros, akkor lekérjük a pozícióját
+        offset_in = [indices_in[1] - r_in, indices_in[0] - r_in] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
+        pos_in = np.array(pos_new + offset_in) # kiszámoljuk a pályán lévő pozícióját a pontnak
 
-
-        # Kulso ivre (ua. mint belsore)---------------------------------
-        tmp = [0]
+        # pos_new-el egy vonalban levo kulso pont meghatarozasa---------
+        tmp_out = [0]
         col_out = rgb2gray(np.reshape(self.track_outside_color, (1, 1, 3)))
-        r = 0
+        r_out = 0
+        while not np.any(tmp_out):
+            r_out = r_out + 1  # növeljük a disc sugarát
+            tmp_out = trk[pos_new[1] - r_out:pos_new[1] + r_out + 1, pos_new[0] - r_out:pos_new[0] + r_out + 1]  # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
+            mask_out = disk(r_out)
+            tmp_out = np.multiply(mask_out, tmp_out)  # maszkoljuk a disc-kel
+            tmp_out[tmp_out != col_out] = 0  # megnézzük, hogy van -e benne kulso szin
+        indices_out = [p[0] for p in np.nonzero(tmp_out)]  # ha volt benne piros, akkor lekérjük a pozícióját
+        offset_out = [indices_out[1] - r_out, indices_out[0] - r_out]  # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
+        pos_out = np.array(pos_new + offset_out)  # kiszámoljuk a pályán lévő pozícióját a pontnak
 
-        while not np.any(tmp):
-            r = r + 1  # növeljük a disc sugarát
-            tmp = trk[pos_new[1] - r:pos_new[1] + r + 1,
-                  pos_new[0] - r:pos_new[0] + r + 1]  # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
-            mask = disk(r)
-            tmp = np.multiply(mask, tmp)  # maszkoljuk a disc-kel
-            tmp[tmp != col_out] = 0  # megnézzük, hogy van -e benne kulso szin
 
-        indices = [p[0] for p in np.nonzero(tmp)]  # ha volt benne piros, akkor lekérjük a pozícióját
-        offset = [indices[1] - r, indices[0] - r]  # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
-        pos_out = np.array(pos_new + offset)  # kiszámoljuk a pályán lévő pozícióját a pontnak
-        # print("-------Pos: ",pos)
+        # A kapott belso es kulso pontokrol megnezni milyen messze vannak a starttol:--------------------------
+
         # Ha kozel vagyunk a falhoz, 1 sugaru r adodik, es egy pixelnyivel mindig pont mas key-t ker mint ami letezik.
-        # Ezt  elkerulendo, azt mondjuk, hogy ekkor a pos_new-hoz tartozo erteket keresse ki. (Arra a meghivaskor van
-        # figyelve, hogy pos new olyan legyyen ami benne van... (persze ez megint csak veszmegoldas)
-        if tuple(pos_out) in self.dists_out:
+        # Ezt  elkerulendo, megnezzuk hogy amivel meg akarjuk hivni az valoban benne van-e a dictekben.
+        # tehat ha a dict-ek tartalmazzak pos_in es pos_out-ot:
+        if tuple(pos_in) in self.dists_in and tuple(pos_out) in self.dists_out:
+            curr_dist_in = self.dists_in[tuple(pos_in)] # a dist_dict-ből lekérjük a start-tól való távolságát
             curr_dist_out = self.dists_out[tuple(pos_out)] # a dist_dict-ből lekérjük a start-tól való távolságát
         else:
-            curr_dist_out = self.dists_out[tuple(pos_new)]
+            # ha nincsennek a kapott potok a dict-ben, akkor a külsö-belsö pontokat osszekoto szakaszon levo ponthoz
+            # kerunk ref-et. Ez sem igazan jo megoldas dehat...
+            pos_fel = pos_out + (pos_in - pos_out) * 0.5 # rnd.uniform(0.4, 0.6)
+            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_fel)
+
         return curr_dist_in, pos_in, curr_dist_out, pos_out
 
     """
@@ -565,6 +566,86 @@ class PaperRaceEnv:
         return reward
     """
 
+    def get_time_diff(self, pos_old, pos_new, act_rew):
+        """Reward ado fuggveny. Egy adott lepeshez (pos_old - pos new) ad jutalmat. Eredetileg az volt hogy -1 azaz mint
+        mint eltelt idő. Most megnezzuk mivan ha egy referencia lepessorhoz kepest a nyert vagy veszetett ido lesz.
+        kb. mint a delta_time channel a MOTEC-ben
+
+        pre_dist_in, az aktualis lepessor, elozo pozicio belso iv menti tavolsaga,
+        curr_dist_in, az aktualis lepessor, jelenlegi pozicio belso iv menti tavolsaga
+        act_rew: az aktualis lepessor mennyi ido alatt ert e tavolsagok kozott
+
+        visszater a rew_dt, ami azt adja, hogy a referencia lepessorhoz kepest ez mennyivel tobb ido"""
+
+        curr_dist_in, curr_pos_in, curr_dist_out, curr_pos_out = self.get_ref(pos_new)
+        pre_dist_in, pre_pos_in, pre_dist_out, pre_pos_out = self.get_ref(pos_old)
+
+        # amennyi ido (lepes) alatt a ref_actionok, a pre_dist-ből a curr_dist-be eljutottak--------------------------
+        # look-up szerűen lesz. Először a bemenetek:
+        x = self.ref_dist
+        y = self.ref_steps
+
+        xvals = np.array([pre_dist_in, curr_dist_in])
+        print("elozo es aktualis tav:", xvals)
+
+        # ezekre a tavolsagokra a referencia lepessor ennyi ido alaptt jutott el
+        yinterp = np.interp(xvals, x, y, 0)
+        # print("ref ennyi ido alatt jutott ezekre:", yinterp)
+
+        # tehat ezt a negyasau lepest a referencia ennyi ido alatt tette meg (- legyen, hogy a kisebb ido legyen a magasabb
+        # reward) :
+        ref_delta = -yinterp[1] + yinterp[0]
+        # print("a ref. ezen lepesnyi ideje:", ref_delta)
+
+        # az atualis lepesben az eltelt ido nyilvan -1, illetve ha ido-bunti van akkor ennel tobb, eppen a reward
+        # print("elozo es aktualis lepes kozott eltelt ido:", act_rew)
+
+        # amenyivel az aktualis ebben a lepesben jobb, azaz kevesebb ido alatt tette meg ezt a elmozdulat, mint a ref
+        # lepessor, az:
+        rew_dt = -ref_delta + act_rew
+        # print("az aktualis, ebben a lepesben megtett tavot ennyivel kevesebb ido alatt tette meg mint a ref. (ha (-) akkor meg több):", rew_dt)
+
+        return rew_dt
+
+    def __get_ref_dicts(self, ref_actions):
+
+        # Fent az env initbe kell egy referencia lepessor. Actionok, egy vektorban...vagy akarhogy.
+        # Az Actionokhoz tudjuk a pos-okat minden lepesben
+
+        v = np.array(self.starting_spd)  # az elején a sebesség a startvonalra meroleges
+        pos = np.array(self.starting_pos)  # kezdőpozíció beállítása
+        epreward = 0
+
+        steps_nr = range(0, len(ref_actions))
+
+        ref_steps = np.zeros(len(ref_actions))
+        ref_dist = np.zeros(len(ref_actions))
+
+        plt.clf()
+        self.draw_track()
+
+        for i in steps_nr:
+            #nye = input('Give input')
+            action = self.ref_actions[i]
+            print(action)
+            gg_action = self.gg_action(action)  # action-höz tartozó vektor lekérése
+            v_new, pos_new, reward, end, section_nr = self.step(gg_action, v, pos, True, 'blue')
+            curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
+            ref_dist[i] = curr_dist_in
+            epreward = epreward + reward
+            ref_steps[i] = -epreward
+
+            if True:
+                plt.pause(0.001)
+                plt.draw()
+
+            v = v_new
+            pos = pos_new
+
+        print(ref_dist)
+        print(ref_steps)
+
+        return ref_dist, ref_steps
 
     def __get_dists_in(self, rajz=False):
         """

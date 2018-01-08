@@ -74,10 +74,16 @@ for ep in range(episodes):
             action = 0
         else:
             #action = int(input('Give inut (-180..180 number)'))
-            action = int(np.random.randint(-180, 180, size=1))
+            #action = int(np.random.randint(-180, 180, size=1))
+            if step < env.ref_actions.size:
+                action = int(np.random.normal(env.ref_actions[step], 30, size=1))
+            else:
+                action = int(np.random.randint(-180, 180, size=1))
+
         print("action: ", action, "-------------")
         gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
         v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
+        t_diff = env.get_time_diff(pos, pos_new, reward)
         s = [v[0], v[1], pos[0], pos[1]]
         s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
         a = action
@@ -87,7 +93,7 @@ for ep in range(episodes):
         # print("ref_dist: ", ref_dist)
         # print("curr_dist: ", curr_dist)
         # r = curr_dist - ref_dist
-        r = reward
+        r = t_diff
         terminal = end
 
         #print(s)

@@ -78,7 +78,13 @@ class ActorNetwork(object):
         net = tflearn.fully_connected(inputs, 400)
         net = tflearn.layers.normalization.batch_normalization(net)
         net = tflearn.activations.relu(net)
-        net = tflearn.fully_connected(net, 300)
+        net = tflearn.fully_connected(net, 30)
+        net = tflearn.layers.normalization.batch_normalization(net)
+        net = tflearn.activations.relu(net)
+        net = tflearn.fully_connected(net, 30)
+        net = tflearn.layers.normalization.batch_normalization(net)
+        net = tflearn.activations.relu(net)
+        net = tflearn.fully_connected(net, 30)
         net = tflearn.layers.normalization.batch_normalization(net)
         net = tflearn.activations.relu(net)
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
@@ -172,8 +178,7 @@ class CriticNetwork(object):
         t1 = tflearn.fully_connected(net, 300)
         t2 = tflearn.fully_connected(action, 300)
 
-        net = tflearn.activation(
-            tf.matmul(net, t1.W) + tf.matmul(action, t2.W) + t2.b, activation='relu')
+        net = tflearn.activation(tf.matmul(net, t1.W) + tf.matmul(action, t2.W) + t2.b, activation='relu')
 
         # linear layer connected to 1 output representing Q(s,a)
         # Weights are init to Uniform[-3e-3, 3e-3]
@@ -272,7 +277,7 @@ def train(sess, env, args, actor, critic, actor_noise):
     draws = 1
 
     # osszes tanulas alatt ennyiszer rajzolunk:
-    draws_per_fullepisodes = 1000
+    draws_per_fullepisodes = 2000
 
 
     # A koncepcio az lesz hogy generalunk egy 0-1 kozotti szamot, aminel majd kell random szamnak kisebbnek kell
@@ -280,7 +285,13 @@ def train(sess, env, args, actor, critic, actor_noise):
 
     # de eloszor is a tanitasra szant epizodok elso valahany %-aban nagyon random lepked. Ilyenkor meg nem is kene
     # tanulni, csak tolteni fel az exerience memoryt
-    rand_ep_for_exp = int(args['max_episodes']) * 0.00005
+    rand_ep_for_exp = int(args['max_episodes']) * 0.001
+
+    # egy masfele random baszakodas
+    rand_ep_for_exp2 = range(int(0.7 * int(args['max_episodes'])), int(0.71 * int(args['max_episodes'])))
+
+    # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
+    rand_stp_min = 0.001
 
     # ====================
     # Indul egy epizod:
@@ -313,19 +324,16 @@ def train(sess, env, args, actor, critic, actor_noise):
         # Exploration-joz: Ha mas nincs, ne veletlenszeruen lepkedjen
         rand_episode = False
         # random lesz egesz epizod, ha a tanulas elejen vagyunk:
-        if i < rand_ep_for_exp:
-            rand_episode = True
-            print("Random Episode")
-        # !: később intézve hogy ilyenkor ne tanuljon, ccak töltse a memoryt
+        rand_episode = i < rand_ep_for_exp
+        print("Random Episode")
+        # !: később intézve hogy ilyenkor ne tanuljon, csak töltse a memoryt
 
-        # random episode
+        rand_episode2 = i in rand_ep_for_exp2
+        print("Random Episode2")
 
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
-        rand_stp_for_exp = (int(args['max_episodes']) - (207 * i)) / int(args['max_episodes'])
+        rand_stp_for_exp = (int(args['max_episodes']) - (20 * i)) / int(args['max_episodes'])
         print("Random Step", rand_stp_for_exp)
-
-        # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
-        rand_stp_min = 0.00005
 
         #egy egy epizódon belül ennyi lépés van maximum:
         for j in range(int(args['max_episode_len'])):
@@ -343,22 +351,34 @@ def train(sess, env, args, actor, critic, actor_noise):
             # Ha az adott felteltel teljesult korabban, es most egy random epizodban vagyunk, vagy nem random az epizod,
             # de a lepes random, na akkor randomot lepunk:
             if rand_episode or rand_step:
-                a = int(np.random.randint(-180, 180, size=1))
+                if j < env.ref_actions.size:
+                    a = int(np.random.normal(env.ref_actions[j], 10, size=1))
+                else:
+                    a = int(actor.predict(np.reshape(s, (1, actor.s_dim))))
                 print("\033[94m {}\033[00m" .format("        -------Random action:"), a)
-            # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
+            # A tanulasra szant epizodok soran nem sak az elejen hanem kesobb is legyen egy kis "belezavaras"
+            elif rand_episode2: # or rand_step2:
+                if j < env.ref_actions.size:
+                    a = int(np.random.normal(env.ref_actions[j], 10, size=1))
+                else:
+                    a = int(actor.predict(np.reshape(s, (1, actor.s_dim))))
+                print("\033[94m {}\033[00m".format("        -------Random2 action:"), a)
+                # ha semmifeltetel a fentiekbol nem teljesul, akkor meg a halo altal mondott lepest lepjuk
             else:
-                a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0*actor_noise()) + int(np.random.randint(-3, 3, size=1))
+                a = int(actor.predict(np.reshape(s, (1, actor.s_dim))) + 0 * actor_noise()) + int(
+                    np.random.randint(-3, 3, size=1))
                 print("Netwrk action:--------", a)
+
 
             gg_action = env.gg_action(a)  # action-höz tartozó vektor lekérése
             #általában ez a fenti két sor egymsor. csak nálunk most így van megírva a környezet, hogy így kell neki beadni az actiont
             #megnézzük mit mond a környezet az adott álapotban az adott action-ra:
             #s2, r, terminal, info = env.step(a)
             v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
-
+            t_diff = env.get_time_diff(pos, pos_new, reward)
             #megintcsak a kétfelől összemásolgatott küdok miatt, feleltessünkk meg egymásnak változókat:
             s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
-            r = reward
+            r = t_diff
             terminal = end
             ep_reward += r
 
@@ -436,11 +456,12 @@ def main(args):
         #sections = np.array([[273, 125, 273,  64],
         #                     [347, 125, 347,  65],
 
-        sections = np.array([[273, 125, 273, 64], # [333, 125, 333, 64],[394, 157, 440, 102],[370, 195, 440, 270]])
-                             [331, 212, 331, 267]])
-                            #[220, 300, 280, 300],
-                            #[240, 400, 300, 380]])
-                            #[190, 125, 190, 64]])
+        #sections = np.array([[273, 125, 273, 64], # [333, 125, 333, 64],[394, 157, 440, 102],[370, 195, 440, 270],[331, 212, 331, 267]] [220, 300, 280, 300]])
+        #                     [240, 400, 300, 380]])
+        #                    #[190, 125, 190, 64]])
+
+        sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
+                             [370, 195, 440, 270]])
 
         #env = PaperRaceEnv('PALYA3.bmp', trk_col, 'GG1.bmp', start_line, random_init=False)
         env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False)
@@ -475,16 +496,16 @@ if __name__ == '__main__':
     # agent parameters
     parser.add_argument('--actor-lr', help='actor network learning rate',   default=0.00002)
     parser.add_argument('--critic-lr', help='critic network learning rate', default=0.001)
-    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.995)
+    parser.add_argument('--gamma', help='discount factor for critic updates', default=0.998)
     parser.add_argument('--tau', help='soft target update parameter', default=0.001)
-    parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)
-    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=64)
+    parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000)
+    parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=32)
 
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=20000)
-    parser.add_argument('--max-episode-len', help='max length of 1 episode', default=100)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=8000)
+    parser.add_argument('--max-episode-len', help='max length of 1 episode', default=40)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
     parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./results/gym_ddpg')
