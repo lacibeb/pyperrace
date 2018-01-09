@@ -180,6 +180,18 @@ class CriticNetwork(object):
 
         net = tflearn.activation(tf.matmul(net, t1.W) + tf.matmul(action, t2.W) + t2.b, activation='relu')
 
+        net = tflearn.fully_connected(net, 90)
+        net = tflearn.layers.normalization.batch_normalization(net)
+        net = tflearn.activations.relu(net)
+
+        net = tflearn.fully_connected(net, 40)
+        net = tflearn.layers.normalization.batch_normalization(net)
+        net = tflearn.activations.relu(net)
+
+        net = tflearn.fully_connected(net, 20)
+        net = tflearn.layers.normalization.batch_normalization(net)
+        net = tflearn.activations.relu(net)
+
         # linear layer connected to 1 output representing Q(s,a)
         # Weights are init to Uniform[-3e-3, 3e-3]
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
@@ -288,7 +300,8 @@ def train(sess, env, args, actor, critic, actor_noise):
     rand_ep_for_exp = int(args['max_episodes']) * 0.001
 
     # egy masfele random baszakodas
-    rand_ep_for_exp2 = range(int(0.7 * int(args['max_episodes'])), int(0.71 * int(args['max_episodes'])))
+    rand_ep_for_exp2 = range(int(0.2 * int(args['max_episodes'])), int(0.21 * int(args['max_episodes'])))
+    rand_ep_for_exp3 = range(int(0.3 * int(args['max_episodes'])), int(0.31 * int(args['max_episodes'])))
 
     # a minimum random amivel a teljes tanulas alatt neha random lep, megha mar a vegen is vagyunk:
     rand_stp_min = 0.001
@@ -328,8 +341,8 @@ def train(sess, env, args, actor, critic, actor_noise):
         print("Random Episode")
         # !: később intézve hogy ilyenkor ne tanuljon, csak töltse a memoryt
 
-        rand_episode2 = i in rand_ep_for_exp2
-        print("Random Episode2")
+        rand_episode2 = i in rand_ep_for_exp2 or (i in rand_ep_for_exp3)
+        print("Random Episode2:", rand_episode2)
 
         # aztan kesobb, az epizodok elorehaladtaval, csokkeno valoszinuseggel, random lepesek
         rand_stp_for_exp = (int(args['max_episodes']) - (20 * i)) / int(args['max_episodes'])

@@ -139,7 +139,7 @@ class PaperRaceEnv:
             # ha atszakit egy szakaszhatart, es ez az utolso is, tehat pont celbaert es ugy esett le a palyarol:
             if crosses and section_nr == len(self.sections) - 1:
                 print("\033[91m {}\033[00m" .format("CELBAERT KI"))
-                reward = -t2 - 5
+                reward = -t2 - 3
                 end = True
             # nem ert celba:
             else:
@@ -203,16 +203,16 @@ class PaperRaceEnv:
                 if not step_on_track:
                     print("PATTAN LE")
                     end = True
-                    reward = -300
+                    reward = -10
                 else:
                     #ha palyan van de pattanas kozben epp celbaert, azt is kezelni kell
                     if crosses and section_nr == len(self.sections) - 1:
                         print("PATTAN CELBA")
                         end = True
-                        reward = -11
+                        reward = -2
                     else:
                         print("\033[95m {}\033[00m" .format("PATTAN"))
-                        reward = -7
+                        reward = -5
                 # Ezt az egeszet augy nem igy kellene csinalni, hanem ug hogy ilyenkor meghivja sajat magat
                 # ez a step fv. nem ilyen esetekeles azon belul esetekkel benazni... Csak nem vok benne biztos hogy
                 # kell az ilyet csinalni, inkabb benzok ezzel
@@ -250,7 +250,7 @@ class PaperRaceEnv:
                 spd_new = n_szel * 30
 
                 # a jutalom (bunti)
-                reward = -100
+                reward = -2
 
                 # es ne legyen vege
                 end = False
@@ -265,7 +265,7 @@ class PaperRaceEnv:
             # ha a 0. szakaszt, azaz startvonalat szakit at (nem visszafordult hanem eleve visszafele indul):
             elif (crosses and section_nr == 0):
                 print("VISSZAKEZD")
-                reward = -300
+                reward = -33
                 curr_dist_in = 0.1
                 end = True
 
