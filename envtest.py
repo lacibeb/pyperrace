@@ -32,17 +32,12 @@ sections = np.array([[273, 125, 273, 64],
                      [240, 400, 330, 380]])
 # [190, 125, 190, 64]])
 """
-#sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
-#                     [370, 195, 440, 270]])
-
-# palya5.bmp-hez:
-sections = np.array([[ 670,  310,  670,  130],  # [333, 125, 333, 64],[394, 157, 440, 102],
-                     [1250, 680, 1250, 550]])
-
+sections = np.array([[273, 125, 273, 64],  # [333, 125, 333, 64],[394, 157, 440, 102],
+                     [370, 195, 440, 270]])
 
 # start_line = np.array([32, 393, 32, 425]) # sigmoid alakú pálya
 
-env = PaperRaceEnv('PALYA5.bmp', trk_col, 'GG1.bmp', sections, random_init=False) # paperrace környezet létrehozása
+env = PaperRaceEnv('PALYA4.bmp', trk_col, 'GG1.bmp', sections, random_init=False) # paperrace környezet létrehozása
 mem_size = 100 # a memória mérete, amiből a batch-be válogatunk
 batch_size = 10 # batch mérete, ami a tanítási adatokat tartalmazza
 episodes = 1000 # hányszor fusson a tanítás
@@ -59,7 +54,7 @@ draw = True
 
 for ep in range(episodes):
     env.reset()
-    print("================EP.:================ ", ep) # epizód számának kiírása
+    print("================EP.: ", ep) # epizód számának kiírása
     if draw: # ha rajzolunk
         plt.clf()
         env.draw_track()
@@ -73,25 +68,22 @@ for ep in range(episodes):
     end = False
     color = (0, 0, 1)
     step = 0
-    while not end or step == 50:
+    while not end:
         step = step + 1
         if step == 1:
             action = 0
         else:
             #action = int(input('Give inut (-180..180 number)'))
-            action = int(np.random.randint(-180, 180, size=1))
-            # action = env.ref_actions[step-2]
-        print("action: ", action, "=============================")
-        gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
-        print("gg:", gg_action, "v:", v, "posold:", pos, "------")
-        pos_new_to_chk = env.step(gg_action, v, pos)
-        print("pos_chk:", pos_new_to_chk, "---------------------")
-        pos_old, pos_new, reward, end, section_nr = env.step_check(pos, pos_new_to_chk, 'blue')
-        print("Aftstp posold:", pos_old, "posnew:", pos_new, "--")
-        rew_dt = env.get_time_diff(pos_old, pos_new, reward)
+            #action = int(np.random.randint(-180, 180, size=1))
+            if step < env.ref_actions.size:
+                action = int(np.random.normal(env.ref_actions[step], 30, size=1))
+            else:
+                action = int(np.random.randint(-180, 180, size=1))
 
-        pos = pos_old
-        v_new = pos_new - pos
+        print("action: ", action, "-------------")
+        gg_action = env.gg_action(action)  # action-höz tartozó vektor lekérése
+        v_new, pos_new, reward, end, section_nr = env.step(gg_action, v, pos, draw, color)
+        t_diff = env.get_time_diff(pos, pos_new, reward)
         s = [v[0], v[1], pos[0], pos[1]]
         s2 = [v_new[0], v_new[1], pos_new[0], pos_new[1]]
         a = action
@@ -101,15 +93,15 @@ for ep in range(episodes):
         # print("ref_dist: ", ref_dist)
         # print("curr_dist: ", curr_dist)
         # r = curr_dist - ref_dist
-        r = rew_dt
+        r = t_diff
         terminal = end
 
         #print(s)
         #print(s2)
         epreward = epreward + r
-        print("reward: ", r, "----------------")
-        #print("dist: ", dist_new, "----------------")
+        print("reward: ", r)
         #print("Section: ", section_nr)
+
         replay_buffer.add(np.reshape(s, (s_dim,)), np.reshape(a, (a_dim,)), r,
                           terminal, np.reshape(s2, (s_dim,)))
 
