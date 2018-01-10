@@ -1,4 +1,15 @@
-import matplotlib.pyplot as plt
+"Ez a HPC-s verziÃ³"
+
+OnHPC = False
+
+if OnHPC:
+    use_matplotlib = False
+else:
+    use_matplotlib = True
+
+if use_matplotlib:
+    import matplotlib.pyplot as plt
+
 import matplotlib.image as mpimg
 import numpy as np
 import random as rnd
@@ -23,9 +34,13 @@ class PaperRaceEnv:
         self.track_outside_color = np.array([255, 255, 255], dtype='uint8')
 
         self.trk_pic = mpimg.imread(trk_pic)  # beolvassa a pályát
+        self.trk = rgb2gray(self.trk_pic)  # szürkeárnyalatosban dolgozunk
         self.trk_col = trk_col  # trk_pic-en a pálya színe
         self.gg_pic = mpimg.imread(gg_pic) # beolvassa a GG diagramot
         self.steps = 0  # az eddig megtett lépések száma
+
+        self.col_in = rgb2gray(np.reshape(np.array(self.track_inside_color), (1, 1, 3)))[0, 0]
+        self.col_out = rgb2gray(np.reshape(np.array(self.track_outside_color), (1, 1, 3)))[0, 0]
 
         # Ha be van kapcsolva az autó véletlen pozícióból való indítása, random szakaszból indulunk
         self.random_init = random_init
@@ -88,14 +103,16 @@ class PaperRaceEnv:
 
     def draw_track(self):
         # pálya kirajzolása
-        plt.imshow(self.trk_pic)
+        if use_matplotlib:
+            plt.imshow(self.trk_pic)
 
         # Szakaszok kirajzolása
         for i in range(len(self.sections)):
 
             X = np.array([self.sections[i][0], self.sections[i][2]])
             Y = np.array([self.sections[i][1], self.sections[i][3]])
-            plt.plot(X, Y, color='blue')
+            if use_matplotlib:
+                plt.plot(X, Y, color='blue')
 
     def step(self, spd_chn, spd_old, pos_old, draw, color):
 
@@ -185,11 +202,13 @@ class PaperRaceEnv:
                 if draw:  # kirajzolja az autót
                     X = np.array([pos_old[0], pos_chk[0]])
                     Y = np.array([pos_old[1], pos_chk[1]])
-                    plt.plot(X, Y, color='green')
+                    if use_matplotlib:
+                        plt.plot(X, Y, color='green')
 
                     X = np.array([pos_in[0], pos_out[0]])
                     Y = np.array([pos_in[1], pos_out[1]])
-                    plt.plot(X, Y, color='yellow')
+                    if use_matplotlib:
+                        plt.plot(X, Y, color='yellow')
 
 
                 # megcsinlajuk a visszapattanas utani lepest
@@ -294,7 +313,8 @@ class PaperRaceEnv:
         if draw: # kirajzolja az autót
             X = np.array([pos_old[0], pos_new[0]])
             Y = np.array([pos_old[1], pos_new[1]])
-            plt.plot(X, Y, color=color)
+            if use_matplotlib:
+                plt.plot(X, Y, color=color)
 
         return spd_new, pos_new, reward, end, section_nr
 
@@ -493,33 +513,33 @@ class PaperRaceEnv:
         # ha igen, akkor azt a pixelt kikeresi a dist_dict-ből, majd megnezi ehhez mennyi a ref sebesseggel mennyi ido
         # jar
 
-        trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
+        #self.trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
         pos_new = np.array(pos_new, dtype='int32')
 
         # pos_new-el egy vonalban levo belso pont meghatarozasa---------
         tmp_in = [0]
-        col_in = rgb2gray(np.reshape(self.track_inside_color, (1, 1, 3)))
+        #_in = rgb2gray(np.reshape(self.track_inside_color, (1, 1, 3)))
         r_in = 0
         while not np.any(tmp_in):
             r_in = r_in + 1 # növeljük a disc sugarát
-            tmp_in = trk[pos_new[1] - r_in:pos_new[1] + r_in + 1, pos_new[0] - r_in:pos_new[0] + r_in + 1] # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
+            tmp_in = self.trk[pos_new[1] - r_in:pos_new[1] + r_in + 1, pos_new[0] - r_in:pos_new[0] + r_in + 1] # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
             mask_in = disk(r_in)
             tmp_in = np.multiply(mask_in, tmp_in) # maszkoljuk a disc-kel
-            tmp_in[tmp_in != col_in] = 0 # megnézzük, hogy van -e benne belso szin
+            tmp_in[tmp_in != self.col_in] = 0 # megnézzük, hogy van -e benne belso szin
         indices_in = [p[0] for p in np.nonzero(tmp_in)] # ha volt benne piros, akkor lekérjük a pozícióját
         offset_in = [indices_in[1] - r_in, indices_in[0] - r_in] # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
         pos_in = np.array(pos_new + offset_in) # kiszámoljuk a pályán lévő pozícióját a pontnak
 
         # pos_new-el egy vonalban levo kulso pont meghatarozasa---------
         tmp_out = [0]
-        col_out = rgb2gray(np.reshape(self.track_outside_color, (1, 1, 3)))
+        #col_out = rgb2gray(np.reshape(self.track_outside_color, (1, 1, 3)))
         r_out = 0
         while not np.any(tmp_out):
             r_out = r_out + 1  # növeljük a disc sugarát
-            tmp_out = trk[pos_new[1] - r_out:pos_new[1] + r_out + 1, pos_new[0] - r_out:pos_new[0] + r_out + 1]  # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
+            tmp_out = self.trk[pos_new[1] - r_out:pos_new[1] + r_out + 1, pos_new[0] - r_out:pos_new[0] + r_out + 1]  # vesszük az aktuális pozíció körüli 2rx2r-es négyzetet
             mask_out = disk(r_out)
             tmp_out = np.multiply(mask_out, tmp_out)  # maszkoljuk a disc-kel
-            tmp_out[tmp_out != col_out] = 0  # megnézzük, hogy van -e benne kulso szin
+            tmp_out[tmp_out != self.col_out] = 0  # megnézzük, hogy van -e benne kulso szin
         indices_out = [p[0] for p in np.nonzero(tmp_out)]  # ha volt benne piros, akkor lekérjük a pozícióját
         offset_out = [indices_out[1] - r_out, indices_out[0] - r_out]  # eltoljuk, hogy megkapjuk a kocsihoz viszonyított relatív pozícióját
         pos_out = np.array(pos_new + offset_out)  # kiszámoljuk a pályán lévő pozícióját a pontnak
@@ -621,7 +641,8 @@ class PaperRaceEnv:
         ref_steps = np.zeros(len(ref_actions))
         ref_dist = np.zeros(len(ref_actions))
 
-        plt.clf()
+        if use_matplotlib:
+             plt.clf()
         self.draw_track()
 
         for i in steps_nr:
@@ -636,8 +657,9 @@ class PaperRaceEnv:
             ref_steps[i] = -epreward
 
             if True:
-                plt.pause(0.001)
-                plt.draw()
+
+                if use_matplotlib:
+                    plt.draw()
 
             v = v_new
             pos = pos_new
@@ -664,17 +686,17 @@ class PaperRaceEnv:
         # szar tud lenni ezert az algoritmus kezdo pontjat a startvonal kicsit visszabbra tesszuk.
         # (TODO: megerteni miert szarakodik a dist, es kijavitani)
         start_point = np.array([self.start_x, self.start_y]) - np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
-        trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
-        col = rgb2gray(np.reshape(np.array(self.track_inside_color), (1, 1, 3)))[0, 0]
+        #trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
+        #col_in = rgb2gray(np.reshape(np.array(self.track_inside_color), (1, 1, 3)))[0, 0]
         tmp = [0]
         r = 0 # a korong sugarát 0-ra állítjuk
         while not np.any(tmp): # amíg nincs belső pont fedésünk
             r = r + 1 # növeljük a sugarat
             mask = disk(r) # létrehozzuk a korongot (egy mátrixban 0-ák és egyesek)
-            tmp = trk[start_point[1] - r:start_point[1] + r + 1, start_point[0] - r:start_point[0] + r + 1] # kivágunk
+            tmp = self.trk[start_point[1] - r:start_point[1] + r + 1, start_point[0] - r:start_point[0] + r + 1] # kivágunk
             # a képből egy kezdőpont kp-ú, ugyanekkora részt
             tmp = np.multiply(mask, tmp) # maszkoljuk a koronggal
-            tmp[tmp != col] = 0 # a kororngon ami nem piros azt 0-ázzuk
+            tmp[tmp != self.col_in] = 0 # a kororngon ami nem piros azt 0-ázzuk
 
         indices = [p[0] for p in np.nonzero(tmp)] #az első olyan pixel koordinátái, ami piros
         offset = [indices[1] - r, indices[0] - r] # eltoljuk, hogy a kp-tól megkapjuk a relatív távolságvektorát
@@ -692,10 +714,10 @@ class PaperRaceEnv:
             dist += 1 # a távolságot növeli 1-gyel
             bal_ford = dirs[(direction_idx + 1) % 4] # a balra lévő pixel eléréséhez
             jobb_ford = dirs[(direction_idx - 1) % 4] # a jobbra lévő pixel eléréséhez
-            if trk[point[1] + bal_ford[1], point[0] + bal_ford[0]] == col: # ha a tőlünk balra lévő pixel piros
+            if self.trk[point[1] + bal_ford[1], point[0] + bal_ford[0]] == self.col_in: # ha a tőlünk balra lévő pixel piros
                 direction_idx = (direction_idx + 1) % 4 # akkor elfordulunk balra
                 point = point + bal_ford
-            elif trk[point[1] + dirs[direction_idx][1], point[0] + dirs[direction_idx][0]] == col: # ha az előttünk lévő pixel piros
+            elif self.trk[point[1] + dirs[direction_idx][1], point[0] + dirs[direction_idx][0]] == self.col_in: # ha az előttünk lévő pixel piros
                 point = point + dirs[direction_idx] # akkor arra megyünk tovább
             else:
                 direction_idx = (direction_idx - 1) % 4 # különben jobbra fordulunk
@@ -709,8 +731,8 @@ class PaperRaceEnv:
             if np.array_equal(point, start_point): # ha visszaértünk az elejére, akkor leállunk
                 break
         if rajz:
-            plt.draw()
-            plt.pause(0.001)
+            if use_matplotlib:
+                plt.draw()
 
         return dist_dict_in
 
@@ -732,17 +754,18 @@ class PaperRaceEnv:
         # (TODO: megerteni miert szarakodik a dist, es kijavitani)
         start_point = np.array([self.start_x, self.start_y])
         #- np.array([int(self.e_start_spd[0] * 10), int(self.e_start_spd[1] * 10)])
-        trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
-        col = rgb2gray(np.reshape(np.array(self.track_outside_color), (1, 1, 3)))[0, 0]
+        #trk = rgb2gray(self.trk_pic) # szürkeárnyalatosban dolgozunk
+        #col_out = rgb2gray(np.reshape(np.array(self.track_outside_color), (1, 1, 3)))[0, 0]
         tmp = [0]
         r = 0 # a korong sugarát 0-ra állítjuk
         while not np.any(tmp): # amíg nincs belső pont fedésünk
             r = r + 1 # növeljük a sugarat
             mask = disk(r) # létrehozzuk a korongot (egy mátrixban 0-ák és egyesek)
-            tmp = trk[start_point[1] - r:start_point[1] + r + 1, start_point[0] - r:start_point[0] + r + 1] # kivágunk
+            tmp = self.trk[start_point[1] - r:start_point[1] + r + 1, start_point[0] - r:start_point[0] + r + 1] # kivágunk
             # a képből egy kezdőpont kp-ú, ugyanekkora részt
             tmp = np.multiply(mask, tmp) # maszkoljuk a koronggal
-            tmp[tmp != col] = 0 # a kororngon ami nem piros azt 0-ázzuk
+            #???? con_in-nek kellene lennie
+            tmp[tmp != self.col_out] = 0 # a kororngon ami nem piros azt 0-ázzuk
 
         indices = [p[0] for p in np.nonzero(tmp)] #az első olyan pixel koordinátái, ami piros
         offset = [indices[1] - r, indices[0] - r] # eltoljuk, hogy a kp-tól megkapjuk a relatív távolságvektorát
@@ -763,10 +786,10 @@ class PaperRaceEnv:
             dist += 1 # a távolságot növeli 1-gyel
             bal_ford = dirs[(direction_idx + 1) % 4] # a balra lévő pixel eléréséhez
             jobb_ford = dirs[(direction_idx - 1) % 4] # a jobbra lévő pixel eléréséhez
-            if trk[point[1] + bal_ford[1], point[0] + bal_ford[0]] == col: # ha a tőlünk balra lévő pixel piros
+            if self.trk[point[1] + bal_ford[1], point[0] + bal_ford[0]] == self.col_out: # ha a tőlünk balra lévő pixel piros
                 direction_idx = (direction_idx + 1) % 4 # akkor elfordulunk balra
                 point = point + bal_ford
-            elif trk[point[1] + dirs[direction_idx][1], point[0] + dirs[direction_idx][0]] == col: # ha az előttünk lévő pixel piros
+            elif self.trk[point[1] + dirs[direction_idx][1], point[0] + dirs[direction_idx][0]] == self.col_out: # ha az előttünk lévő pixel piros
                 point = point + dirs[direction_idx] # akkor arra megyünk tovább
             else:
                 direction_idx = (direction_idx - 1) % 4 # különben jobbra fordulunk
@@ -780,7 +803,7 @@ class PaperRaceEnv:
             if np.array_equal(point, start_point): # ha visszaértünk az elejére, akkor leállunk
                 break
         if rajz:
-            plt.draw()
-            plt.pause(0.001)
+            if use_matplotlib:
+                plt.draw()
 
         return dist_dict_out
