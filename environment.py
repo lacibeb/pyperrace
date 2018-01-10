@@ -109,9 +109,9 @@ class PaperRaceEnv:
         # Szakaszok kirajzolása
         for i in range(len(self.sections)):
 
-            X = np.array([self.sections[i][0], self.sections[i][2]])
-            Y = np.array([self.sections[i][1], self.sections[i][3]])
             if use_matplotlib:
+                X = np.array([self.sections[i][0], self.sections[i][2]])
+                Y = np.array([self.sections[i][1], self.sections[i][3]])
                 plt.plot(X, Y, color='blue')
 
     def step(self, spd_chn, spd_old, pos_old, draw, color):
@@ -200,14 +200,14 @@ class PaperRaceEnv:
 
                 # kirajzoljuk a falig megtett szakaszt
                 if draw:  # kirajzolja az autót
-                    X = np.array([pos_old[0], pos_chk[0]])
-                    Y = np.array([pos_old[1], pos_chk[1]])
                     if use_matplotlib:
+                        X = np.array([pos_old[0], pos_chk[0]])
+                        Y = np.array([pos_old[1], pos_chk[1]])
                         plt.plot(X, Y, color='green')
 
-                    X = np.array([pos_in[0], pos_out[0]])
-                    Y = np.array([pos_in[1], pos_out[1]])
                     if use_matplotlib:
+                        X = np.array([pos_in[0], pos_out[0]])
+                        Y = np.array([pos_in[1], pos_out[1]])
                         plt.plot(X, Y, color='yellow')
 
 
@@ -301,9 +301,10 @@ class PaperRaceEnv:
                 curr_dist_in, pos_in, curr_dist_out, pos_out = self.get_ref(pos_new)
                 reward = 1
 
-            X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
-            Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
-            plt.plot(X, Y, color='magenta')
+            if use_matplotlib:
+                X = np.array([pos_temp_in_old[0], pos_temp_out_old[0]])
+                Y = np.array([pos_temp_in_old[1], pos_temp_out_old[1]])
+                plt.plot(X, Y, color='magenta')
 
         # ha barmi miatt az autó megáll, sebesseg zerus, akkor vége
         if np.array_equal(spd_new, [0, 0]):
@@ -311,9 +312,9 @@ class PaperRaceEnv:
 
         # Ha akarjuk, akkor itt rajzoljuk ki az aktualis lepes abrajat (lehet maskor kene)
         if draw: # kirajzolja az autót
-            X = np.array([pos_old[0], pos_new[0]])
-            Y = np.array([pos_old[1], pos_new[1]])
             if use_matplotlib:
+                X = np.array([pos_old[0], pos_new[0]])
+                Y = np.array([pos_old[1], pos_new[1]])
                 plt.plot(X, Y, color=color)
 
         return spd_new, pos_new, reward, end, section_nr
@@ -726,7 +727,8 @@ class PaperRaceEnv:
             dist_dict_in[tuple(point)] = dist # a pontot belerakjuk a dictionarybe
 
             if rajz:
-                plt.plot([point[0]], [point[1]], 'yo')
+                if use_matplotlib:
+                    plt.plot([point[0]], [point[1]], 'yo')
 
             if np.array_equal(point, start_point): # ha visszaértünk az elejére, akkor leállunk
                 break
@@ -798,7 +800,8 @@ class PaperRaceEnv:
             dist_dict_out[tuple(point)] = dist # a pontot belerakjuk a dictionarybe
 
             if rajz:
-                plt.plot([point[0]], [point[1]], 'yo')
+                if use_matplotlib:
+                    plt.plot([point[0]], [point[1]], 'yo')
 
             if np.array_equal(point, start_point): # ha visszaértünk az elejére, akkor leállunk
                 break

@@ -342,7 +342,8 @@ def train(sess, env, args, actor, critic, actor_noise):
         if i == draws:
             draw = True
             draws = draws + int(args['max_episodes']) / draws_per_fullepisodes
-            plt.clf()
+            if use_matplotlib:
+                plt.clf()
             env.draw_track()
         # ---------------------------------------------------------------------------
 
@@ -513,8 +514,12 @@ def main(args):
 
         train(sess, env, args, actor, critic, actor_noise)
 
+        save(actor, critic)
 
-
+def save(actor, critic)
+    actor.save("actor.tfl")
+    critic.save("actor.tfl")
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
@@ -529,7 +534,7 @@ if __name__ == '__main__':
     # run parameters
     parser.add_argument('--env', help='choose the gym env- tested on {Pendulum-v0}', default='Acrobot-v1')
     parser.add_argument('--random-seed', help='random seed for repeatability', default=12131)
-    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=8000)
+    parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=10000)
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=40)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
