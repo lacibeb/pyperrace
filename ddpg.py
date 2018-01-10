@@ -1,5 +1,4 @@
-#proba sokadig
-# """
+"""
 Implementation of DDPG - Deep Deterministic Policy Gradient
 Algorithm and hyperparameter details can be found here:
     http://arxiv.org/pdf/1509.02971v2.pdf
@@ -10,7 +9,19 @@ Author: Patrick Emami
 
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt #a kirajzoláshoz kell, de lassú szar
+
+"Ez a HPC-s verziÃ³"
+
+OnHPC = False
+
+if OnHPC:
+    use_matplotlib = False
+else:
+    use_matplotlib = True
+
+if use_matplotlib:
+    import matplotlib.pyplot as plt #a kirajzoláshoz kell, de lassú szar
+
 #import gym
 from environment import PaperRaceEnv
 #from gym import wrappers
@@ -429,8 +440,8 @@ def train(sess, env, args, actor, critic, actor_noise):
                 critic.update_target_network()
 
             if draw:
-                plt.pause(0.001)
-                plt.draw()
+                if use_matplotlib:
+                    plt.draw()
 
             #a kovetkezo lepeshez uj s legyen egyenlo az aktualis es folytatjuk
             #s = s2
