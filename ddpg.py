@@ -12,7 +12,7 @@ import numpy as np
 
 "Ez a HPC-s verziÃ³"
 
-OnHPC = False
+OnHPC = True
 
 if OnHPC:
     use_matplotlib = False
