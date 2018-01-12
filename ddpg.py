@@ -461,6 +461,7 @@ def train(sess, env, args, actor, critic, actor_noise):
                 writer.add_summary(summary_str, i)
                 writer.flush()
 
+                print(chr(27) + "[2J")
                 print('| Reward: {:.3f} | Episode: {:d} | Qmax: {:.4f}'.format(ep_reward, i, (ep_ave_max_q / float(j))))
 
                 break
@@ -516,10 +517,11 @@ def main(args):
 
         save(actor, critic)
 
-def save(actor, critic)
-    actor.save("actor.tfl")
-    critic.save("actor.tfl")
-    
+def save(actor, critic):
+    print("save - not working")
+    #actor.save("actor.tfl")
+    #critic.save("actor.tfl")
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
